@@ -56,38 +56,110 @@ from qdrant_client.http import models
 
 class VectorService:
     def __init__(self, s3_service: S3Service = None):
+        # s3_service is kept for compatibility but not used for search anymore
         self.s3_service = s3_service
-        print("VectorService: Initialized in MOCK mode (S3 scan only).")
-        # Qdrant/Gemini disabled for debugging
-        # genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-        # self.qdrant = ...
+        
+        # Initialize Gemini
+        genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+        self.embedding_model = "models/text-embedding-004"
+        
+        # Initialize Qdrant
+        print("Initializing Qdrant Client...")
+        start = time.time()
+        self.qdrant = QdrantClient(
+            url=os.environ.get("QDRANT_URL"),
+            api_key=os.environ.get("QDRANT_API_KEY"),
+        )
+        print(f"Qdrant Client Initialized in {time.time() - start:.2f}s")
+        self.collection_name = "prompts"
+        self._collection_checked = False
+
+    def _ensure_collection(self):
+        if self._collection_checked:
+            return
+
+        print("Checking Qdrant Collection...")
+        start = time.time()
+        try:
+            self.qdrant.get_collection(self.collection_name)
+            print(f"Collection found in {time.time() - start:.2f}s")
+        except Exception:
+            print("Collection not found, creating...")
+            # Create collection if it doesn't exist
+            # Vector size for text-embedding-004 is 768
+            self.qdrant.create_collection(
+                collection_name=self.collection_name,
+                vectors_config=models.VectorParams(size=768, distance=models.Distance.COSINE),
+            )
+            print(f"Collection created in {time.time() - start:.2f}s")
+        self._collection_checked = True
+
+    def _get_embedding(self, text: str) -> List[float]:
+        print("Generating Embedding...")
+        start = time.time()
+        result = genai.embed_content(
+            model=self.embedding_model,
+            content=text,
+            task_type="retrieval_document",
+        )
+        print(f"Embedding generated in {time.time() - start:.2f}s")
+        return result['embedding']
 
     def add_point(self, text: str, metadata: Dict[str, Any]):
-        """
-        Mock add_point: Does nothing because we just scan S3 for search.
-        """
-        print(f"VectorService: Mock add_point called for {metadata.get('title')}")
-        return True
+        """Generates embedding and saves to Qdrant."""
+        self._ensure_collection() # Lazy check
+        try:
+            vector = self._get_embedding(text)
+            
+            # Qdrant requires an integer or UUID for point ID. 
+            # Our metadata['id'] is a UUID string, which works.
+            point_id = metadata['id']
+            
+            print("Upserting to Qdrant...")
+            start = time.time()
+            self.qdrant.upsert(
+                collection_name=self.collection_name,
+                points=[
+                    models.PointStruct(
+                        id=point_id,
+                        vector=vector,
+                        payload=metadata
+                    )
+                ]
+            )
+            print(f"Upsert completed in {time.time() - start:.2f}s")
+            return True
+        except Exception as e:
+            print(f"Error adding to Qdrant: {e}")
+            # We don't raise here to avoid failing the main save operation if vector DB is down
+            # But in production you might want to handle this differently (e.g. DLQ)
+            return False
 
     def search(self, query: str) -> List[Dict[str, Any]]:
-        """
-        Mock search: Scans all prompts in S3 and does a substring match.
-        """
-        print(f"VectorService: Mock search for '{query}'")
+        """Semantic search using Qdrant."""
+        self._ensure_collection() # Lazy check
         try:
-            all_prompts = self.s3_service.list_prompts()
-            results = []
-            query_lower = query.lower()
+            # Generate query embedding
+            print("Generating Query Embedding...")
+            start = time.time()
+            query_vector = genai.embed_content(
+                model=self.embedding_model,
+                content=query,
+                task_type="retrieval_query",
+            )['embedding']
+            print(f"Query embedding generated in {time.time() - start:.2f}s")
             
-            for prompt in all_prompts:
-                # Simple text matching
-                text_content = f"{prompt.get('title', '')} {prompt.get('description', '')} {prompt.get('prompt_text', '')} {' '.join(prompt.get('tags', []))}"
-                
-                if query_lower in text_content.lower():
-                    results.append(prompt)
+            print("Searching Qdrant...")
+            start = time.time()
+            search_result = self.qdrant.search(
+                collection_name=self.collection_name,
+                query_vector=query_vector,
+                limit=10
+            )
+            print(f"Search completed in {time.time() - start:.2f}s")
             
-            print(f"VectorService: Found {len(results)} matches in S3.")
-            return results
+            # Extract payload (metadata)
+            return [hit.payload for hit in search_result]
         except Exception as e:
-            print(f"VectorService: Error during mock search: {e}")
+            print(f"Error searching Qdrant: {e}")
             return []
