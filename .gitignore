@@ -1,0 +1,4 @@
+/.DS_Store
+/deploy_lambda_s3.sh
+/deployment.zip
+/venv
