@@ -3,10 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from mangum import Mangum
 from pydantic import BaseModel
 from typing import List, Optional
-try:
-    from .services import S3Service, VectorService
-except ImportError:
-    from services import S3Service, VectorService
+from .services import S3Service, VectorService
 
 app = FastAPI()
 
@@ -28,9 +25,10 @@ vector_service = VectorService(s3_service)
 class Prompt(BaseModel):
     title: str
     description: str
-    tool_used: str
+    tool_used: List[str]
     prompt_text: str
     tags: List[str]
+    username: Optional[str] = None
 
 @app.get("/")
 def read_root():
@@ -45,14 +43,17 @@ def create_prompt(prompt: Prompt):
         
         # 2. Save vector embedding (mock)
         # We construct a text representation for semantic search
-        searchable_text = f"{prompt.title} {prompt.description} {prompt.prompt_text} {' '.join(prompt.tags)}"
+        tools_str = " ".join(prompt.tool_used)
+        searchable_text = f"{prompt.title} {prompt.description} {prompt.prompt_text} {tools_str} {' '.join(prompt.tags)}"
         vector_service.add_point(
             text=searchable_text,
             metadata={
                 "id": prompt_id,
                 "title": prompt.title,
                 "description": prompt.description,
-                "tags": prompt.tags
+                "tags": prompt.tags,
+                "username": prompt.username,
+                "tool_used": prompt.tool_used
             }
         )
         

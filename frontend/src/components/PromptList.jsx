@@ -1,16 +1,20 @@
 import React, { useState } from 'react';
+import { useToast } from './Toast';
 
-const PromptList = ({ onSearch, results }) => {
+const PromptList = ({ onSearch, results, onFilter }) => {
     const [query, setQuery] = useState('');
+    const [selectedPrompt, setSelectedPrompt] = useState(null);
+    const { addToast } = useToast();
 
     const handleSearch = (e) => {
         e.preventDefault();
+        console.log("Search button clicked, query:", query); // Debug log
         onSearch(query);
     };
 
     const copyToClipboard = (text) => {
         navigator.clipboard.writeText(text);
-        alert('Prompt copied to clipboard!');
+        addToast('Prompt copied to clipboard!', 'success');
     };
 
     return (
@@ -33,23 +37,75 @@ const PromptList = ({ onSearch, results }) => {
                     <div key={item.id} className="card">
                         <div className="flex justify-between items-center mb-4">
                             <h3 style={{ margin: 0, color: '#60a5fa' }}>{item.title}</h3>
-                            <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{item.tool_used}</span>
+                            <div style={{ textAlign: 'right' }}>
+                                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', flexWrap: 'wrap', marginBottom: '0.25rem' }}>
+                                    {(Array.isArray(item.tool_used) ? item.tool_used : [item.tool_used]).map((tool, idx) => (
+                                        <span
+                                            key={idx}
+                                            className="tool-badge"
+                                            style={{
+                                                fontSize: '0.9rem',
+                                                fontWeight: '600',
+                                                color: '#38bdf8',
+                                                cursor: 'pointer',
+                                                display: 'inline-block',
+                                                padding: '0.2rem 0.5rem',
+                                                background: 'rgba(56, 189, 248, 0.1)',
+                                                borderRadius: '0.25rem',
+                                                border: '1px solid rgba(56, 189, 248, 0.2)'
+                                            }}
+                                            onClick={() => onFilter && onFilter('tool', tool)}
+                                            title={`Filter by ${tool}`}
+                                        >
+                                            {tool}
+                                        </span>
+                                    ))}
+                                </div>
+                                {item.username && (
+                                    <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>
+                                        by <span
+                                            style={{ color: '#e2e8f0', fontWeight: '500', cursor: 'pointer', textDecoration: 'underline' }}
+                                            onClick={() => onFilter && onFilter('username', item.username)}
+                                            title={`Filter by user ${item.username}`}
+                                        >
+                                            {item.username}
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                         <p style={{ color: '#cbd5e1', marginBottom: '1rem' }}>{item.description}</p>
 
                         <div className="mb-4">
                             {item.tags && item.tags.map((tag, idx) => (
-                                <span key={idx} className="tag">#{tag}</span>
+                                <span
+                                    key={idx}
+                                    className="tag"
+                                    style={{ cursor: 'pointer' }}
+                                    onClick={() => onFilter && onFilter('tag', tag)}
+                                    title="Filter by tag"
+                                >
+                                    #{tag}
+                                </span>
                             ))}
                         </div>
 
-                        <button
-                            className="btn btn-secondary"
-                            onClick={() => copyToClipboard(item.prompt_text || "Prompt text not available in search result (mock)")}
-                            style={{ width: '100%' }}
-                        >
-                            Copy Prompt
-                        </button>
+                        <div className="flex gap-2">
+                            <button
+                                className="btn btn-secondary"
+                                onClick={() => copyToClipboard(item.prompt_text || "Prompt text not available")}
+                                style={{ flex: 1 }}
+                            >
+                                Copy Prompt
+                            </button>
+                            <button
+                                className="btn btn-primary"
+                                onClick={() => setSelectedPrompt(item)}
+                                style={{ flex: 1 }}
+                            >
+                                View Prompt
+                            </button>
+                        </div>
                     </div>
                 ))}
 
@@ -59,6 +115,59 @@ const PromptList = ({ onSearch, results }) => {
                     </div>
                 )}
             </div>
+
+            {/* Modal */}
+            {selectedPrompt && (
+                <div className="modal-overlay" onClick={() => setSelectedPrompt(null)}>
+                    <div className="modal-content" onClick={e => e.stopPropagation()}>
+                        <button className="modal-close" onClick={() => setSelectedPrompt(null)}>&times;</button>
+
+                        <h2 style={{ marginTop: 0, color: '#60a5fa', marginBottom: '0.5rem' }}>{selectedPrompt.title}</h2>
+                        <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '1rem' }}>
+                            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                {(Array.isArray(selectedPrompt.tool_used) ? selectedPrompt.tool_used : [selectedPrompt.tool_used]).map((tool, idx) => (
+                                    <span key={idx} style={{ fontSize: '1.1rem', fontWeight: '600', color: '#38bdf8' }}>
+                                        {tool}{idx < (Array.isArray(selectedPrompt.tool_used) ? selectedPrompt.tool_used.length : 1) - 1 ? ', ' : ''}
+                                    </span>
+                                ))}
+                            </div>
+                            {selectedPrompt.username && (
+                                <span style={{ fontSize: '0.9rem', color: '#94a3b8' }}>
+                                    Submitted by <span style={{ color: '#f8fafc', fontWeight: 'bold' }}>{selectedPrompt.username}</span>
+                                </span>
+                            )}
+                        </div>
+
+                        <p style={{ color: '#cbd5e1' }}>{selectedPrompt.description}</p>
+
+                        <div className="mb-4">
+                            {selectedPrompt.tags && selectedPrompt.tags.map((tag, idx) => (
+                                <span key={idx} className="tag">#{tag}</span>
+                            ))}
+                        </div>
+
+                        <h3>Prompt:</h3>
+                        <div className="prompt-text-block">
+                            {selectedPrompt.prompt_text || "No prompt text available."}
+                        </div>
+
+                        <div className="mt-4 flex justify-between">
+                            <button
+                                className="btn btn-secondary"
+                                onClick={() => setSelectedPrompt(null)}
+                            >
+                                Close
+                            </button>
+                            <button
+                                className="btn btn-primary"
+                                onClick={() => copyToClipboard(selectedPrompt.prompt_text || "")}
+                            >
+                                Copy to Clipboard
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

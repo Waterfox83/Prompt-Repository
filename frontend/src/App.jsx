@@ -4,11 +4,14 @@ import PromptList from './components/PromptList';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000').replace(/\/$/, '');
 
-function App() {
-  const [activeTab, setActiveTab] = useState('search');
-  const [searchResults, setSearchResults] = useState([]);
-  const [browseResults, setBrowseResults] = useState([]);
+import { ToastProvider, useToast } from './components/Toast';
+
+function AppContent() {
+  const [activeTab, setActiveTab] = useState('browse');
+  const [allPrompts, setAllPrompts] = useState([]); // Store all prompts for client-side filtering
+  const [displayedPrompts, setDisplayedPrompts] = useState([]); // What is currently shown
   const [loading, setLoading] = useState(false);
+  const { addToast } = useToast();
 
   const handleSave = async (data) => {
     console.log("handleSave called with:", data); // Debug log
@@ -24,32 +27,39 @@ function App() {
       });
 
       if (response.ok) {
-        alert('Prompt saved successfully!');
+        addToast('Prompt saved successfully!', 'success');
         setActiveTab('browse');
         handleBrowse(); // Refresh list
       } else {
-        alert('Failed to save prompt.');
+        addToast('Failed to save prompt.', 'error');
       }
     } catch (error) {
       console.error('Error saving prompt:', error);
-      alert('Error saving prompt. Is the backend running?');
+      addToast('Error saving prompt. Is the backend running?', 'error');
     } finally {
       setLoading(false);
     }
   };
 
   const handleSearch = async (query) => {
+    console.log("handleSearch called with query:", query); // Debug log
+    if (!query.trim()) {
+      console.log("Query empty, resetting to all prompts"); // Debug log
+      setDisplayedPrompts(allPrompts); // Reset if empty
+      return;
+    }
     try {
+      console.log("Fetching search results from:", `${API_URL}/search?q=${encodeURIComponent(query)}`); // Debug log
       const response = await fetch(`${API_URL}/search?q=${encodeURIComponent(query)}`);
       if (response.ok) {
         const data = await response.json();
-        setSearchResults(data.results);
+        setDisplayedPrompts(data.results);
       } else {
-        alert('Failed to search prompts.');
+        addToast('Failed to search prompts.', 'error');
       }
     } catch (error) {
       console.error('Error searching prompts:', error);
-      alert('Error searching prompts. Is the backend running?');
+      addToast('Error searching prompts. Is the backend running?', 'error');
     }
   };
 
@@ -58,21 +68,44 @@ function App() {
       const response = await fetch(`${API_URL}/prompts`);
       if (response.ok) {
         const data = await response.json();
-        setBrowseResults(data.results);
+        // Sort by date descending (newest first)
+        const sorted = data.results.sort((a, b) => {
+          return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+        });
+        setAllPrompts(sorted);
+        setDisplayedPrompts(sorted);
       } else {
-        alert('Failed to fetch prompts.');
+        addToast('Failed to fetch prompts.', 'error');
       }
     } catch (error) {
       console.error('Error fetching prompts:', error);
+      addToast('Error fetching prompts.', 'error');
     }
   };
 
-  // Load browse results when tab changes to browse
-  React.useEffect(() => {
-    if (activeTab === 'browse') {
-      handleBrowse();
+  const handleFilter = (type, value) => {
+    if (type === 'tag') {
+      const filtered = allPrompts.filter(p => p.tags && p.tags.includes(value));
+      setDisplayedPrompts(filtered);
+    } else if (type === 'tool') {
+      // Handle both array (new) and string (old) for backward compatibility
+      const filtered = allPrompts.filter(p => {
+        if (Array.isArray(p.tool_used)) {
+          return p.tool_used.includes(value);
+        }
+        return p.tool_used === value;
+      });
+      setDisplayedPrompts(filtered);
+    } else if (type === 'username') {
+      const filtered = allPrompts.filter(p => p.username === value);
+      setDisplayedPrompts(filtered);
     }
-  }, [activeTab]);
+  };
+
+  // Load browse results on mount
+  React.useEffect(() => {
+    handleBrowse();
+  }, []);
 
   return (
     <div className="container">
@@ -80,14 +113,11 @@ function App() {
 
       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '2rem', gap: '1rem' }}>
         <button
-          className={`btn ${activeTab === 'search' ? 'btn-primary' : 'btn-secondary'}`}
-          onClick={() => setActiveTab('search')}
-        >
-          Search
-        </button>
-        <button
           className={`btn ${activeTab === 'browse' ? 'btn-primary' : 'btn-secondary'}`}
-          onClick={() => setActiveTab('browse')}
+          onClick={() => {
+            setActiveTab('browse');
+            setDisplayedPrompts(allPrompts); // Reset filters
+          }}
         >
           Browse All
         </button>
@@ -103,17 +133,24 @@ function App() {
         <PromptForm onSave={handleSave} loading={loading} />
       )}
 
-      {activeTab === 'search' && (
-        <PromptList onSearch={handleSearch} results={searchResults} />
-      )}
-
       {activeTab === 'browse' && (
         <div>
-          <h2 style={{ textAlign: 'center', marginBottom: '2rem' }}>All Prompts</h2>
-          <PromptList onSearch={() => { }} results={browseResults} />
+          <PromptList
+            onSearch={handleSearch}
+            results={displayedPrompts}
+            onFilter={handleFilter}
+          />
         </div>
       )}
     </div>
+  );
+}
+
+function App() {
+  return (
+    <ToastProvider>
+      <AppContent />
+    </ToastProvider>
   );
 }
 

@@ -20,7 +20,7 @@ def test_api():
     new_prompt = {
         "title": "Test Prompt",
         "description": "A test prompt for verification",
-        "tool_used": "TestTool",
+        "tool_used": ["TestTool"],
         "prompt_text": "This is a test prompt.",
         "tags": ["test", "verification"]
     }

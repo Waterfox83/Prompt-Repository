@@ -1,6 +1,4 @@
 fastapi
-uvicorn
 mangum
-boto3
 pydantic
 requests
