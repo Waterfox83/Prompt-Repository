@@ -6,7 +6,7 @@
   --accent-color: #3b82f6;
   --accent-hover: #2563eb;
   --border-color: #334155;
-  --font-family: 'Inter', sans-serif;
+  --font-family: 'Google Sans Flex', sans-serif;
 }
 
 body {
@@ -41,8 +41,9 @@ body {
 
 /* Typography */
 h1 {
-  font-size: 2.5rem;
-  font-weight: 800;
+  font-family: var(--font-family);
+  font-size: 60px;
+  font-weight: 300;
   background: linear-gradient(to right, #60a5fa, #a855f7);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -127,7 +128,61 @@ select:focus {
 /* Layout Utilities */
 .grid {
   display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 1.5rem;
+}
+
+.card {
+  background: rgba(30, 41, 59, 0.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.prompt-card {
+  height: 400px;
+  /* Fixed height only for grid items */
+}
+
+.card-description {
+  flex: 1;
+  overflow: hidden;
+  margin-bottom: 1rem;
+  color: #cbd5e1;
+  position: relative;
+  mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+}
+
+.card-description:hover {
+  overflow-y: auto;
+  mask-image: none;
+  -webkit-mask-image: none;
+  padding-right: 0.5rem;
+  /* Space for scrollbar */
+}
+
+/* Custom Scrollbar for description */
+.card-description::-webkit-scrollbar {
+  width: 6px;
+}
+
+.card-description::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.card-description::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.card-description::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .grid-cols-2 {

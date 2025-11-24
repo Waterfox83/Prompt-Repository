@@ -3,6 +3,14 @@
 BUCKET_NAME="llm-prompt-repo-lambda-code"
 ZIP_FILE="deployment.zip"
 
+# 0. Check AWS Credentials
+echo "Checking AWS credentials..."
+aws sts get-caller-identity > /dev/null
+if [ $? -ne 0 ]; then
+    echo "❌ AWS credentials invalid or expired. Please run 'aws sso login' or export new keys."
+    exit 1
+fi
+
 # 1. Build the zip using the existing script
 echo "Building deployment package..."
 if [ -f "./build_lambda.sh" ]; then

@@ -34,49 +34,54 @@ const PromptList = ({ onSearch, results, onFilter }) => {
 
             <div className="grid">
                 {results.map((item) => (
-                    <div key={item.id} className="card">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 style={{ margin: 0, color: '#60a5fa' }}>{item.title}</h3>
-                            <div style={{ textAlign: 'right' }}>
-                                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', flexWrap: 'wrap', marginBottom: '0.25rem' }}>
-                                    {(Array.isArray(item.tool_used) ? item.tool_used : [item.tool_used]).map((tool, idx) => (
-                                        <span
-                                            key={idx}
-                                            className="tool-badge"
-                                            style={{
-                                                fontSize: '0.9rem',
-                                                fontWeight: '600',
-                                                color: '#38bdf8',
-                                                cursor: 'pointer',
-                                                display: 'inline-block',
-                                                padding: '0.2rem 0.5rem',
-                                                background: 'rgba(56, 189, 248, 0.1)',
-                                                borderRadius: '0.25rem',
-                                                border: '1px solid rgba(56, 189, 248, 0.2)'
-                                            }}
-                                            onClick={() => onFilter && onFilter('tool', tool)}
-                                            title={`Filter by ${tool}`}
-                                        >
-                                            {tool}
-                                        </span>
-                                    ))}
-                                </div>
-                                {item.username && (
-                                    <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>
-                                        by <span
-                                            style={{ color: '#e2e8f0', fontWeight: '500', cursor: 'pointer', textDecoration: 'underline' }}
-                                            onClick={() => onFilter && onFilter('username', item.username)}
-                                            title={`Filter by user ${item.username}`}
-                                        >
-                                            {item.username}
-                                        </span>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                        <p style={{ color: '#cbd5e1', marginBottom: '1rem' }}>{item.description}</p>
+                    <div key={item.id} className="card prompt-card">
+                        <div className="mb-2">
+                            <h3 style={{ margin: '0 0 0.5rem 0', color: '#60a5fa' }}>{item.title}</h3>
 
-                        <div className="mb-4">
+                            {/* Tools */}
+                            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
+                                {(Array.isArray(item.tool_used) ? item.tool_used : [item.tool_used]).map((tool, idx) => (
+                                    <span
+                                        key={idx}
+                                        className="tool-badge"
+                                        style={{
+                                            fontSize: '0.85rem',
+                                            fontWeight: '600',
+                                            color: '#38bdf8',
+                                            cursor: 'pointer',
+                                            display: 'inline-block',
+                                            padding: '0.1rem 0.4rem',
+                                            background: 'rgba(56, 189, 248, 0.1)',
+                                            borderRadius: '0.25rem',
+                                            border: '1px solid rgba(56, 189, 248, 0.2)'
+                                        }}
+                                        onClick={() => onFilter && onFilter('tool', tool)}
+                                        title={`Filter by ${tool}`}
+                                    >
+                                        {tool}
+                                    </span>
+                                ))}
+                            </div>
+
+                            {/* Username */}
+                            {item.username && (
+                                <div style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '0.5rem' }}>
+                                    by <span
+                                        style={{ color: '#e2e8f0', fontWeight: '500', cursor: 'pointer', textDecoration: 'underline' }}
+                                        onClick={() => onFilter && onFilter('username', item.username)}
+                                        title={`Filter by user ${item.username}`}
+                                    >
+                                        {item.username}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="card-description">
+                            <p style={{ margin: 0 }}>{item.description}</p>
+                        </div>
+
+                        <div className="mb-4" style={{ marginTop: 'auto' }}>
                             {item.tags && item.tags.map((tag, idx) => (
                                 <span
                                     key={idx}

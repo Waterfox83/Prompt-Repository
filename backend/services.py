@@ -18,32 +18,62 @@ class S3Service:
             self._local_storage = [
                 {
                     "id": "dummy-1",
-                    "title": "Python Fibonacci",
-                    "description": "Efficient Fibonacci sequence generator using memoization.",
+                    "title": "Python Fibonacci Generator",
+                    "description": "A highly efficient Fibonacci sequence generator using memoization to optimize performance for large numbers. This implementation avoids recursion depth issues.",
                     "tool_used": ["ChatGPT"],
-                    "prompt_text": "Write a python function for fibonacci sequence using memoization.",
+                    "prompt_text": "Write a python function for fibonacci sequence using memoization. Ensure it handles large inputs efficiently.",
                     "tags": ["python", "algorithm", "optimization"],
                     "username": "Alice",
                     "created_at": datetime.now().isoformat()
                 },
                 {
                     "id": "dummy-2",
-                    "title": "React Button Component",
-                    "description": "A reusable button component with loading state.",
+                    "title": "React Loading Button",
+                    "description": "A reusable React button component that accepts a loading prop. It disables the button and shows a spinning loader icon when the loading state is true, preventing multiple submissions.",
                     "tool_used": ["Claude", "Cursor"],
-                    "prompt_text": "Create a React button component that accepts a loading prop and shows a spinner.",
-                    "tags": ["react", "frontend", "ui"],
+                    "prompt_text": "Create a React button component that accepts a loading prop and shows a spinner. Use Tailwind CSS for styling.",
+                    "tags": ["react", "frontend", "ui", "components"],
                     "username": "Bob",
                     "created_at": datetime.now().isoformat()
                 },
                 {
                     "id": "dummy-3",
-                    "title": "SQL Join Explanation",
-                    "description": "Explain different types of SQL joins with examples.",
+                    "title": "SQL Join Masterclass",
+                    "description": "A comprehensive explanation of different types of SQL joins (INNER, LEFT, RIGHT, FULL) with clear, practical examples using two sample tables: 'Customers' and 'Orders'.",
                     "tool_used": ["Gemini"],
-                    "prompt_text": "Explain INNER, LEFT, RIGHT, and FULL OUTER joins in SQL with simple examples.",
-                    "tags": ["sql", "database", "tutorial"],
+                    "prompt_text": "Explain INNER, LEFT, RIGHT, and FULL OUTER joins in SQL with simple examples using Customers and Orders tables.",
+                    "tags": ["sql", "database", "tutorial", "backend"],
                     "username": "Charlie",
+                    "created_at": datetime.now().isoformat()
+                },
+                {
+                    "id": "dummy-4",
+                    "title": "AWS Lambda Deployment Script",
+                    "description": "A shell script to package a Python FastAPI application and deploy it to AWS Lambda via S3. It handles dependency installation, zipping, and AWS CLI commands.",
+                    "tool_used": ["Copilot"],
+                    "prompt_text": "Write a bash script to zip a python lambda function with dependencies and upload to S3.",
+                    "tags": ["aws", "devops", "bash", "lambda"],
+                    "username": "Dave",
+                    "created_at": datetime.now().isoformat()
+                },
+                {
+                    "id": "dummy-5",
+                    "title": "FastAPI CRUD Boilerplate",
+                    "description": "A complete starter template for a FastAPI backend with SQLAlchemy, Pydantic models, and CRUD operations for a 'User' resource. Includes Dockerfile.",
+                    "tool_used": ["ChatGPT", "Cursor"],
+                    "prompt_text": "Generate a production-ready FastAPI boilerplate with SQLAlchemy, Pydantic, and Docker support.",
+                    "tags": ["python", "fastapi", "backend", "docker"],
+                    "username": "Eve",
+                    "created_at": datetime.now().isoformat()
+                },
+                {
+                    "id": "dummy-6",
+                    "title": "Midjourney Portrait Prompts",
+                    "description": "A collection of high-quality prompts for generating realistic cyberpunk portraits in Midjourney v6. Focuses on lighting, texture, and color grading.",
+                    "tool_used": ["Midjourney"],
+                    "prompt_text": "Cyberpunk street samurai, neon rain, cinematic lighting, 8k resolution, photorealistic --v 6.0",
+                    "tags": ["art", "midjourney", "generative-ai", "cyberpunk"],
+                    "username": "Frank",
                     "created_at": datetime.now().isoformat()
                 }
             ]

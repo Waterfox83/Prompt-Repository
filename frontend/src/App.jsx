@@ -109,7 +109,7 @@ function AppContent() {
 
   return (
     <div className="container">
-      <h1>AI Prompt Repository</h1>
+      <h1>Prompt Repository</h1>
 
       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '2rem', gap: '1rem' }}>
         <button
