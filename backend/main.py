@@ -30,6 +30,10 @@ class Prompt(BaseModel):
     tags: List[str]
     username: Optional[str] = None
 
+class GenerateRequest(BaseModel):
+    title: str
+    prompt_text: str
+
 @app.get("/")
 def read_root():
     return {"message": "AI Prompt Repository API is running"}
@@ -53,7 +57,8 @@ def create_prompt(prompt: Prompt):
                 "description": prompt.description,
                 "tags": prompt.tags,
                 "username": prompt.username,
-                "tool_used": prompt.tool_used
+                "tool_used": prompt.tool_used,
+                "prompt_text": prompt.prompt_text
             }
         )
         
@@ -69,3 +74,11 @@ def list_prompts():
 def search_prompts(q: str):
     results = vector_service.search(q)
     return {"results": results}
+
+@app.post("/generate-details")
+def generate_details(request: GenerateRequest):
+    try:
+        result = vector_service.generate_details(request.title, request.prompt_text)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

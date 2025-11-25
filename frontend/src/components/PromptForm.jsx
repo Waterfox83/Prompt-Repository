@@ -4,6 +4,7 @@ import { useToast } from './Toast';
 const PromptForm = ({ onSave, loading }) => {
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
+    const [generating, setGenerating] = useState(false); // New state for AI generation
     const [selectedTools, setSelectedTools] = useState([]);
     const [toolInput, setToolInput] = useState('');
     const [showSuggestions, setShowSuggestions] = useState(false);
@@ -44,6 +45,42 @@ const PromptForm = ({ onSave, loading }) => {
         tool.toLowerCase().includes(toolInput.toLowerCase()) &&
         !selectedTools.includes(tool)
     );
+
+    const handleGenerate = async () => {
+        if (!title.trim() || !promptText.trim()) {
+            addToast("Please provide a Title and Prompt Text to generate details.", "error");
+            return;
+        }
+
+        setGenerating(true);
+        try {
+            const API_URL = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000').replace(/\/$/, '');
+            const response = await fetch(`${API_URL}/generate-details`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    title: title,
+                    prompt_text: promptText
+                }),
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.description) setDescription(data.description);
+                if (data.tags && Array.isArray(data.tags)) setTags(data.tags.join(', '));
+                addToast("Details generated successfully!", "success");
+            } else {
+                addToast("Failed to generate details.", "error");
+            }
+        } catch (error) {
+            console.error("Error generating details:", error);
+            addToast("Error connecting to AI service.", "error");
+        } finally {
+            setGenerating(false);
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -162,18 +199,6 @@ const PromptForm = ({ onSave, loading }) => {
                 </div>
 
                 <div className="mb-4">
-                    <label>Description</label>
-                    <textarea
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        placeholder="What does this utility do?"
-                        rows="2"
-                        required
-                        disabled={loading}
-                    />
-                </div>
-
-                <div className="mb-4">
                     <label>Prompt / Instructions</label>
                     <textarea
                         value={promptText}
@@ -182,6 +207,30 @@ const PromptForm = ({ onSave, loading }) => {
                         rows="6"
                         required
                         style={{ fontFamily: 'monospace' }}
+                        disabled={loading}
+                    />
+                </div>
+
+                <div className="mb-4" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <button
+                        type="button"
+                        onClick={handleGenerate}
+                        className="btn btn-secondary"
+                        disabled={loading || generating}
+                        style={{ fontSize: '0.9rem', padding: '0.4rem 0.8rem' }}
+                    >
+                        {generating ? 'Generating...' : '✨ Generate Tags & Description with AI'}
+                    </button>
+                </div>
+
+                <div className="mb-4">
+                    <label>Description</label>
+                    <textarea
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        placeholder="What does this utility do?"
+                        rows="2"
+                        required
                         disabled={loading}
                     />
                 </div>
