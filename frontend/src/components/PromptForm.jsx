@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
 import { useToast } from './Toast';
 
-const PromptForm = ({ onSave, loading }) => {
-    const [title, setTitle] = useState('');
-    const [description, setDescription] = useState('');
+const PromptForm = ({ onSave, loading, initialData = null, onCancel = null }) => {
+    const [title, setTitle] = useState(initialData?.title || '');
+    const [description, setDescription] = useState(initialData?.description || '');
     const [generating, setGenerating] = useState(false); // New state for AI generation
-    const [selectedTools, setSelectedTools] = useState([]);
+    const [selectedTools, setSelectedTools] = useState(initialData?.tool_used || []);
     const [toolInput, setToolInput] = useState('');
     const [showSuggestions, setShowSuggestions] = useState(false);
-    const [promptText, setPromptText] = useState('');
-    const [tags, setTags] = useState('');
-    const [username, setUsername] = useState('');
+    const [promptText, setPromptText] = useState(initialData?.prompt_text || '');
+    const [tags, setTags] = useState(initialData?.tags ? initialData.tags.join(', ') : '');
+    const [username, setUsername] = useState(initialData?.username || '');
     const { addToast } = useToast();
+    
+    const isEditing = !!initialData;
 
     const PREDEFINED_TOOLS = [
         "ChatGPT", "Claude", "Gemini", "Llama 3", "Mistral",
@@ -103,19 +105,35 @@ const PromptForm = ({ onSave, loading }) => {
             tags: tagsList,
             username: username.trim() || null
         });
-        // Reset form
-        setTitle('');
-        setDescription('');
-        setSelectedTools([]);
-        setToolInput('');
-        setPromptText('');
-        setTags('');
-        setUsername('');
+        
+        // Reset form only if not editing
+        if (!isEditing) {
+            setTitle('');
+            setDescription('');
+            setSelectedTools([]);
+            setToolInput('');
+            setPromptText('');
+            setTags('');
+            setUsername('');
+        }
     };
 
     return (
         <div className="card">
-            <h2>Add New Prompt</h2>
+            <h2>{isEditing ? 'Edit Prompt' : 'Add New Prompt'}</h2>
+            {!isEditing && (
+                <div style={{
+                    background: 'rgba(34, 197, 94, 0.1)',
+                    border: '1px solid rgba(34, 197, 94, 0.3)',
+                    borderRadius: '0.5rem',
+                    padding: '0.75rem 1rem',
+                    marginBottom: '1.5rem',
+                    color: '#86efac',
+                    fontSize: '0.9rem'
+                }}>
+                    💡 <strong>Tip:</strong> You can edit any prompt you create during this session. Once you close your browser, the edit option will no longer be available.
+                </div>
+            )}
             <form onSubmit={handleSubmit}>
                 <div className="grid grid-cols-2 mb-4">
                     <div>
@@ -245,19 +263,32 @@ const PromptForm = ({ onSave, loading }) => {
                     />
                 </div>
 
-                <button
-                    type="submit"
-                    className="btn btn-primary"
-                    style={{ width: '100%', opacity: loading ? 0.7 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}
-                    disabled={loading}
-                >
-                    {loading ? (
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <div className="spinner"></div>
-                            Saving...
-                        </div>
-                    ) : 'Save to Repository'}
-                </button>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                    {isEditing && onCancel && (
+                        <button
+                            type="button"
+                            onClick={onCancel}
+                            className="btn btn-secondary"
+                            style={{ flex: 1 }}
+                            disabled={loading}
+                        >
+                            Cancel
+                        </button>
+                    )}
+                    <button
+                        type="submit"
+                        className="btn btn-primary"
+                        style={{ flex: 1, opacity: loading ? 0.7 : 1, cursor: loading ? 'not-allowed' : 'pointer' }}
+                        disabled={loading}
+                    >
+                        {loading ? (
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <div className="spinner"></div>
+                                {isEditing ? 'Updating...' : 'Saving...'}
+                            </div>
+                        ) : (isEditing ? 'Update Prompt' : 'Save to Repository')}
+                    </button>
+                </div>
             </form>
         </div>
     );

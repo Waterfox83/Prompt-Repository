@@ -9,8 +9,8 @@ from datetime import datetime
 from botocore.exceptions import ClientError
 
 class S3Service:
-    def __init__(self, bucket_name: str = "llm-prompt-repository"):
-        self.bucket_name = bucket_name
+    def __init__(self, bucket_name: str = None):
+        self.bucket_name = bucket_name or os.environ.get("S3_BUCKET_NAME", "llm-prompt-repository")
         self.mock_mode = os.environ.get("MOCK_MODE", "false").lower() == "true"
         
         if self.mock_mode:
@@ -103,6 +103,45 @@ class S3Service:
             return prompt_id
         except Exception as e:
             print(f"Error saving to S3: {e}")
+            raise e
+
+    def update_prompt(self, prompt_id: str, prompt_data: Dict[str, Any]) -> None:
+        """Updates an existing prompt in S3 or local memory."""
+        # Preserve created_at if updating
+        if 'created_at' not in prompt_data:
+            prompt_data['created_at'] = datetime.now().isoformat()
+        
+        if self.mock_mode:
+            for i, p in enumerate(self._local_storage):
+                if p.get('id') == prompt_id:
+                    # Preserve original created_at
+                    if 'created_at' in p:
+                        prompt_data['created_at'] = p['created_at']
+                    self._local_storage[i] = prompt_data
+                    print(f"S3Service (Mock): Updated prompt {prompt_id}")
+                    return
+            raise Exception(f"Prompt {prompt_id} not found in mock storage")
+        
+        key = f"prompts/{prompt_id}.json"
+        
+        try:
+            # Try to get existing prompt to preserve created_at
+            try:
+                obj_resp = self.s3.get_object(Bucket=self.bucket_name, Key=key)
+                existing_data = json.loads(obj_resp['Body'].read().decode('utf-8'))
+                if 'created_at' in existing_data:
+                    prompt_data['created_at'] = existing_data['created_at']
+            except:
+                pass  # If can't get existing, use new timestamp
+            
+            self.s3.put_object(
+                Bucket=self.bucket_name,
+                Key=key,
+                Body=json.dumps(prompt_data),
+                ContentType='application/json'
+            )
+        except Exception as e:
+            print(f"Error updating S3: {e}")
             raise e
 
     def list_prompts(self) -> List[Dict[str, Any]]:

@@ -10,7 +10,11 @@ app = FastAPI()
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for now (dev/S3)
+    allow_origins=[
+        "https://d3jn1bdzzky8g8.cloudfront.net",  # Your CloudFront domain
+        "http://localhost:5173",  # Local development
+        "http://127.0.0.1:5173",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -69,6 +73,34 @@ def create_prompt(prompt: Prompt):
 @app.get("/prompts")
 def list_prompts():
     return {"results": s3_service.list_prompts()}
+
+@app.put("/prompts/{prompt_id}")
+def update_prompt(prompt_id: str, prompt: Prompt):
+    try:
+        # Update in S3
+        prompt_dict = prompt.dict()
+        prompt_dict['id'] = prompt_id
+        s3_service.update_prompt(prompt_id, prompt_dict)
+        
+        # Update vector database
+        tools_str = " ".join(prompt.tool_used)
+        searchable_text = f"{prompt.title} {prompt.description} {prompt.prompt_text} {tools_str} {' '.join(prompt.tags)}"
+        vector_service.add_point(
+            text=searchable_text,
+            metadata={
+                "id": prompt_id,
+                "title": prompt.title,
+                "description": prompt.description,
+                "tags": prompt.tags,
+                "username": prompt.username,
+                "tool_used": prompt.tool_used,
+                "prompt_text": prompt.prompt_text
+            }
+        )
+        
+        return {"status": "success", "id": prompt_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/search")
 def search_prompts(q: str):

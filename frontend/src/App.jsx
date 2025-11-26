@@ -13,13 +13,17 @@ function AppContent() {
   const [loading, setLoading] = useState(false);
   const { addToast } = useToast();
 
-  const handleSave = async (data) => {
-    console.log("handleSave called with:", data); // Debug log
+  const handleSave = async (data, promptId = null) => {
+    console.log("handleSave called with:", data, "promptId:", promptId); // Debug log
     console.log("API URL:", API_URL); // Debug log
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/prompts`, {
-        method: 'POST',
+      const isUpdate = !!promptId;
+      const url = isUpdate ? `${API_URL}/prompts/${promptId}` : `${API_URL}/prompts`;
+      const method = isUpdate ? 'PUT' : 'POST';
+      
+      const response = await fetch(url, {
+        method: method,
         headers: {
           'Content-Type': 'application/json',
         },
@@ -27,11 +31,20 @@ function AppContent() {
       });
 
       if (response.ok) {
-        addToast('Prompt saved successfully!', 'success');
+        const result = await response.json();
+        addToast(isUpdate ? 'Prompt updated successfully!' : 'Prompt saved successfully!', 'success');
+        
+        // Track in localStorage if new
+        if (!isUpdate && result.id) {
+          const myPrompts = JSON.parse(localStorage.getItem('myPrompts') || '[]');
+          myPrompts.push(result.id);
+          localStorage.setItem('myPrompts', JSON.stringify(myPrompts));
+        }
+        
         setActiveTab('browse');
         handleBrowse(); // Refresh list
       } else {
-        addToast('Failed to save prompt.', 'error');
+        addToast(isUpdate ? 'Failed to update prompt.' : 'Failed to save prompt.', 'error');
       }
     } catch (error) {
       console.error('Error saving prompt:', error);
@@ -139,8 +152,25 @@ function AppContent() {
             onSearch={handleSearch}
             results={displayedPrompts}
             onFilter={handleFilter}
+            onEdit={(prompt) => {
+              setActiveTab('edit');
+              // Pass the prompt data to edit
+              window.editingPrompt = prompt;
+            }}
           />
         </div>
+      )}
+      
+      {activeTab === 'edit' && (
+        <PromptForm 
+          onSave={(data) => handleSave(data, window.editingPrompt?.id)} 
+          loading={loading}
+          initialData={window.editingPrompt}
+          onCancel={() => {
+            setActiveTab('browse');
+            window.editingPrompt = null;
+          }}
+        />
       )}
     </div>
   );

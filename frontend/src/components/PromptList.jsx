@@ -1,10 +1,16 @@
 import React, { useState } from 'react';
 import { useToast } from './Toast';
 
-const PromptList = ({ onSearch, results, onFilter }) => {
+const PromptList = ({ onSearch, results, onFilter, onEdit }) => {
     const [query, setQuery] = useState('');
     const [selectedPrompt, setSelectedPrompt] = useState(null);
     const { addToast } = useToast();
+    
+    // Check if prompt was created in this session
+    const canEdit = (promptId) => {
+        const myPrompts = JSON.parse(localStorage.getItem('myPrompts') || '[]');
+        return myPrompts.includes(promptId);
+    };
 
     const handleSearch = (e) => {
         e.preventDefault();
@@ -96,13 +102,15 @@ const PromptList = ({ onSearch, results, onFilter }) => {
                         </div>
 
                         <div className="flex gap-2">
-                            <button
-                                className="btn btn-secondary"
-                                onClick={() => copyToClipboard(item.prompt_text || "Prompt text not available")}
-                                style={{ flex: 1 }}
-                            >
-                                Copy Prompt
-                            </button>
+                            {!canEdit(item.id) && (
+                                <button
+                                    className="btn btn-secondary"
+                                    onClick={() => copyToClipboard(item.prompt_text || "Prompt text not available")}
+                                    style={{ flex: 1 }}
+                                >
+                                    Copy Prompt
+                                </button>
+                            )}
                             <button
                                 className="btn btn-primary"
                                 onClick={() => setSelectedPrompt(item)}
@@ -110,6 +118,20 @@ const PromptList = ({ onSearch, results, onFilter }) => {
                             >
                                 View Prompt
                             </button>
+                            {canEdit(item.id) && (
+                                <button
+                                    className="btn"
+                                    onClick={() => onEdit && onEdit(item)}
+                                    style={{ 
+                                        flex: 1,
+                                        background: '#059669',
+                                        color: 'white'
+                                    }}
+                                    title="You can edit this because you created it in this session"
+                                >
+                                    Edit
+                                </button>
+                            )}
                         </div>
                     </div>
                 ))}
