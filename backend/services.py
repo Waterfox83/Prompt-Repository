@@ -4,9 +4,111 @@ import uuid
 import os
 import time
 import requests
+import numpy as np
+import io
 from typing import List, Dict, Any
 from datetime import datetime
 from botocore.exceptions import ClientError
+
+class SESService:
+    def __init__(self):
+        self.mock_mode = os.environ.get("MOCK_MODE", "false").lower() == "true"
+        self.sender_email = os.environ.get("SES_SENDER_EMAIL", "no-reply@pega.com")
+        self._mock_verified_emails = set() # Track verified emails in mock mode
+        
+        if self.mock_mode:
+            print("SESService: Initialized in MOCK MODE")
+        else:
+            self.ses = boto3.client('ses')
+
+    def get_identity_status(self, email: str) -> str:
+        """Checks if the email is verified in SES."""
+        if self.mock_mode:
+            # If we've "verified" it in this session, return Success
+            if email in self._mock_verified_emails:
+                return "Success"
+                
+            # Simulate unverified for specific test email
+            if email.lower() == "unverified@pega.com":
+                print(f"SESService (Mock): Checking status for {email} -> Pending")
+                return "Pending"
+            print(f"SESService (Mock): Checking status for {email} -> Success")
+            return "Success"
+
+        try:
+            response = self.ses.get_identity_verification_attributes(Identities=[email])
+            attributes = response.get('VerificationAttributes', {})
+            if email in attributes:
+                return attributes[email]['VerificationStatus']
+            return "NotFound"
+        except ClientError as e:
+            print(f"Error checking identity status: {e}")
+            return "Error"
+
+    def verify_email(self, email: str) -> bool:
+        """Triggers SES verification email."""
+        if self.mock_mode:
+            print(f"SESService (Mock): Triggering verification email for {email}")
+            # Auto-verify in mock mode so next check succeeds
+            self._mock_verified_emails.add(email)
+            return True
+
+        try:
+            self.ses.verify_email_identity(EmailAddress=email)
+            print(f"Verification email sent to {email}")
+            return True
+        except ClientError as e:
+            print(f"Error triggering verification: {e}")
+            return False
+
+    def send_magic_link(self, recipient_email: str, magic_link: str):
+        """Sends the magic link via SES."""
+        subject = "Your Login Link"
+        body_text = f"Click here to log in: {magic_link}\n\nThis link expires in 15 minutes."
+        body_html = f"""<html>
+<head></head>
+<body>
+  <h1>Login to Prompt Repository</h1>
+  <p>Click the link below to log in. This link is valid for 15 minutes.</p>
+  <p><a href='{magic_link}'>Log In</a></p>
+  <p>If you didn't request this, please ignore this email.</p>
+</body>
+</html>"""
+
+        if self.mock_mode:
+            print(f"SESService (Mock): Sending email to {recipient_email}")
+            print(f"Subject: {subject}")
+            print(f"Link: {magic_link}")
+            return True
+
+        try:
+            self.ses.send_email(
+                Source=self.sender_email,
+                Destination={
+                    'ToAddresses': [recipient_email],
+                },
+                Message={
+                    'Subject': {
+                        'Data': subject,
+                        'Charset': 'UTF-8'
+                    },
+                    'Body': {
+                        'Text': {
+                            'Data': body_text,
+                            'Charset': 'UTF-8'
+                        },
+                        'Html': {
+                            'Data': body_html,
+                            'Charset': 'UTF-8'
+                        }
+                    }
+                }
+            )
+            print(f"Email sent to {recipient_email}")
+            return True
+        except ClientError as e:
+            print(f"Error sending email: {e.response['Error']['Message']}")
+            return False
 
 class S3Service:
     def __init__(self, bucket_name: str = None):
@@ -172,18 +274,19 @@ class VectorService:
     def __init__(self, s3_service):
         self.s3_service = s3_service
         self.mock_mode = os.environ.get("MOCK_MODE", "false").lower() == "true"
+        self.bucket_name = s3_service.bucket_name
         
         if self.mock_mode:
             print("VectorService: Initialized in MOCK MODE (Simple Text Search)")
             return
 
         self.gemini_api_key = os.environ.get("GEMINI_API_KEY")
-        self.qdrant_url = os.environ.get("QDRANT_URL")
-        self.qdrant_api_key = os.environ.get("QDRANT_API_KEY")
-        self.collection_name = "prompt_collection"
         
-        if not self.gemini_api_key or not self.qdrant_url or not self.qdrant_api_key:
-            print("WARNING: Vector DB credentials missing. Semantic search will fallback to mock.")
+        if not self.mock_mode and not self.s3_service.mock_mode:
+            self.s3 = boto3.client('s3')
+        
+        if not self.gemini_api_key:
+            print("WARNING: GEMINI_API_KEY missing. Semantic search will fallback to mock.")
 
     def _get_embedding_rest(self, text: str):
         """Generates embedding using Gemini REST API."""
@@ -206,38 +309,82 @@ class VectorService:
             print(f"Error generating embedding via REST: {e}")
             return None
 
-    def _ensure_collection(self):
-        """Checks if collection exists via REST, creates if not."""
-        if not self.qdrant_url or not self.qdrant_api_key:
+    def _save_embedding_to_s3(self, prompt_id: str, embedding: list):
+        """Saves embedding vector to S3 as numpy array."""
+        if self.mock_mode or self.s3_service.mock_mode:
             return
-
-        headers = {"api-key": self.qdrant_api_key}
-        # Check if collection exists
-        check_url = f"{self.qdrant_url}/collections/{self.collection_name}"
+        
         try:
-            resp = requests.get(check_url, headers=headers, timeout=5)
-            if resp.status_code == 200:
-                return # Exists
+            # Convert to numpy array
+            embedding_array = np.array(embedding, dtype=np.float32)
+            
+            # Save to bytes buffer
+            buffer = io.BytesIO()
+            np.save(buffer, embedding_array)
+            buffer.seek(0)
+            
+            # Upload to S3
+            key = f"embeddings/{prompt_id}.npy"
+            self.s3.put_object(
+                Bucket=self.bucket_name,
+                Key=key,
+                Body=buffer.getvalue(),
+                ContentType='application/octet-stream'
+            )
+            print(f"Saved embedding to S3: {key}")
         except Exception as e:
-            print(f"Error checking collection: {e}")
-            return
+            print(f"Error saving embedding to S3: {e}")
 
-        # Create collection
-        print(f"Creating collection {self.collection_name}...")
-        create_url = f"{self.qdrant_url}/collections/{self.collection_name}"
-        payload = {
-            "vectors": {
-                "size": 768,
-                "distance": "Cosine"
-            }
-        }
+    def _load_embedding_from_s3(self, prompt_id: str):
+        """Loads embedding vector from S3."""
         try:
-            requests.put(create_url, headers=headers, json=payload, timeout=10)
+            key = f"embeddings/{prompt_id}.npy"
+            response = self.s3.get_object(Bucket=self.bucket_name, Key=key)
+            buffer = io.BytesIO(response['Body'].read())
+            embedding = np.load(buffer)
+            return embedding
         except Exception as e:
-            print(f"Error creating collection: {e}")
+            print(f"Error loading embedding from S3 for {prompt_id}: {e}")
+            return None
+
+    def _load_all_embeddings(self):
+        """Loads all embeddings from S3."""
+        embeddings = {}
+        try:
+            # List all embedding files
+            response = self.s3.list_objects_v2(Bucket=self.bucket_name, Prefix='embeddings/')
+            
+            if 'Contents' not in response:
+                return embeddings
+            
+            for obj in response['Contents']:
+                key = obj['Key']
+                if key.endswith('.npy'):
+                    # Extract prompt_id from filename
+                    prompt_id = key.split('/')[-1].replace('.npy', '')
+                    embedding = self._load_embedding_from_s3(prompt_id)
+                    if embedding is not None:
+                        embeddings[prompt_id] = embedding
+            
+            print(f"Loaded {len(embeddings)} embeddings from S3")
+            return embeddings
+        except Exception as e:
+            print(f"Error loading embeddings from S3: {e}")
+            return {}
+
+    def _cosine_similarity(self, vec1, vec2):
+        """Computes cosine similarity between two vectors."""
+        vec1 = np.array(vec1)
+        vec2 = np.array(vec2)
+        dot_product = np.dot(vec1, vec2)
+        norm1 = np.linalg.norm(vec1)
+        norm2 = np.linalg.norm(vec2)
+        if norm1 == 0 or norm2 == 0:
+            return 0.0
+        return dot_product / (norm1 * norm2)
 
     def add_point(self, text: str, metadata: dict):
-        """Adds a point to Qdrant via REST."""
+        """Generates and saves embedding to S3."""
         if self.mock_mode:
             print(f"VectorService (Mock): Added point for {metadata.get('title')}")
             return True
@@ -248,88 +395,57 @@ class VectorService:
             print("Skipping vector add: No embedding generated.")
             return False
 
-        self._ensure_collection()
-
-        # 2. Upsert to Qdrant
-        url = f"{self.qdrant_url}/collections/{self.collection_name}/points?wait=true"
-        headers = {
-            "api-key": self.qdrant_api_key,
-            "Content-Type": "application/json"
-        }
-        
-        point_id = metadata.get("id")
-        
-        payload = {
-            "points": [
-                {
-                    "id": point_id,
-                    "vector": vector,
-                    "payload": metadata
-                }
-            ]
-        }
-        
-        try:
-            print(f"Upserting to collection: {self.collection_name}")
-            resp = requests.put(url, headers=headers, json=payload, timeout=10)
-            print(f"Qdrant Response Status: {resp.status_code}")
-            print(f"Qdrant Response Body: {resp.text}")
-            resp.raise_for_status()
-            print(f"Successfully indexed prompt: {metadata.get('title')}")
-            return True
-        except Exception as e:
-            print(f"Error upserting to Qdrant: {e}")
-            return False
+        # 2. Save embedding to S3
+        prompt_id = metadata.get("id")
+        self._save_embedding_to_s3(prompt_id, vector)
+        print(f"Successfully saved embedding for: {metadata.get('title')}")
+        return True
 
     def search(self, query_text: str, limit: int = 5):
-        """Searches Qdrant via REST."""
+        """Searches using S3-stored embeddings."""
         if self.mock_mode:
             return self._mock_search(query_text)
 
         # 1. Get query embedding
-        vector = self._get_embedding_rest(query_text)
+        query_vector = self._get_embedding_rest(query_text)
         
-        if not vector:
+        if not query_vector:
             print("Fallback to mock search (no embedding)")
             return self._mock_search(query_text)
 
-        self._ensure_collection()
-
-        # 2. Search Qdrant
-        url = f"{self.qdrant_url}/collections/{self.collection_name}/points/search"
-        headers = {
-            "api-key": self.qdrant_api_key,
-            "Content-Type": "application/json"
-        }
+        # 2. Load all embeddings from S3
+        all_embeddings = self._load_all_embeddings()
         
-        payload = {
-            "vector": vector,
-            "limit": limit,
-            "with_payload": True,
-            "score_threshold": 0.01  # Lowered threshold to debug search issues
-        }
-        
-        try:
-            print(f"Searching Qdrant with query: {query_text}")
-            resp = requests.post(url, headers=headers, json=payload, timeout=10)
-            print(f"Qdrant Search Response: {resp.status_code} - {resp.text}")
-            resp.raise_for_status()
-            results = resp.json().get("result", [])
-            
-            # Map back to our format
-            mapped_results = []
-            for hit in results:
-                payload = hit.get("payload", {})
-                mapped_results.append({
-                    "id": hit.get("id"),
-                    "score": hit.get("score"),
-                    **payload
-                })
-            return mapped_results
-            
-        except Exception as e:
-            print(f"Error searching Qdrant: {e}")
+        if not all_embeddings:
+            print("No embeddings found, falling back to mock search")
             return self._mock_search(query_text)
+
+        # 3. Compute similarities
+        similarities = []
+        for prompt_id, embedding in all_embeddings.items():
+            similarity = self._cosine_similarity(query_vector, embedding)
+            similarities.append({
+                "id": prompt_id,
+                "score": float(similarity)
+            })
+        
+        # 4. Sort by similarity (highest first)
+        similarities.sort(key=lambda x: x["score"], reverse=True)
+        
+        # 5. Get top K results and fetch metadata from S3
+        results = []
+        all_prompts = self.s3_service.list_prompts()
+        prompt_dict = {p["id"]: p for p in all_prompts}
+        
+        for item in similarities[:limit]:
+            prompt_id = item["id"]
+            if prompt_id in prompt_dict:
+                result = prompt_dict[prompt_id].copy()
+                result["score"] = item["score"]
+                results.append(result)
+        
+        print(f"Found {len(results)} results for query: {query_text}")
+        return results
 
     def _mock_search(self, query_text: str):
         print("Performing MOCK search (substring match)")

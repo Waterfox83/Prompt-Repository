@@ -3,18 +3,28 @@ from fastapi.middleware.cors import CORSMiddleware
 from mangum import Mangum
 from pydantic import BaseModel
 from typing import List, Optional
-from .services import S3Service, VectorService
+from fastapi import Request, Response, Depends, Cookie
+from fastapi.responses import RedirectResponse
+from .services import S3Service, VectorService, SESService
+from .auth_utils import create_magic_link_token, create_session_token, verify_token
+import os
 
 app = FastAPI()
 
 # Add CORS middleware
+origins = [
+    "http://localhost:5173",  # Local development
+    "http://127.0.0.1:5173",
+]
+
+# Add production frontend URL if set
+frontend_url = os.environ.get("FRONTEND_URL")
+if frontend_url:
+    origins.append(frontend_url)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://d3jn1bdzzky8g8.cloudfront.net",  # Your CloudFront domain
-        "http://localhost:5173",  # Local development
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -25,6 +35,92 @@ handler = Mangum(app)
 # Initialize services
 s3_service = S3Service()
 vector_service = VectorService(s3_service)
+ses_service = SESService()
+
+# Auth Models
+class LoginRequest(BaseModel):
+    email: str
+
+@app.post("/auth/login")
+def login(request: LoginRequest):
+    email = request.email.lower().strip()
+    
+    # Domain validation
+    if not (email.endswith("@pega.com") or email.endswith("@in.pega.com")):
+        raise HTTPException(status_code=403, detail="Access restricted to Pega employees.")
+    
+    # 1. Check SES Verification Status (Sandbox Support)
+    status = ses_service.get_identity_status(email)
+    
+    if status != "Success":
+        # Trigger verification email
+        if ses_service.verify_email(email):
+            return {
+                "status": "verification_required",
+                "message": "Verification email sent. Please check your inbox from Amazon Web Services."
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Failed to send verification email.")
+
+    # 2. If Verified, Send Magic Link
+    token = create_magic_link_token(email)
+    
+    # Construct link
+    api_base_url = os.environ.get("API_BASE_URL", "http://127.0.0.1:8000")
+    magic_link = f"{api_base_url}/auth/verify?token={token}"
+    
+    # Send email
+    if ses_service.send_magic_link(email, magic_link):
+        return {"status": "success", "message": "Magic link sent. Check your email."}
+    else:
+        raise HTTPException(status_code=500, detail="Failed to send magic link.")
+
+@app.get("/auth/verify")
+def verify(token: str):
+    email = verify_token(token, "magic_link")
+    if not email:
+        raise HTTPException(status_code=400, detail="Invalid or expired token.")
+    
+    # Generate session token
+    session_token = create_session_token(email)
+    
+    # Redirect to frontend
+    frontend_url = os.environ.get("FRONTEND_URL", "http://127.0.0.1:5173")
+    response = RedirectResponse(url=frontend_url)
+    
+    # Set cookie
+    is_production = os.environ.get("ENVIRONMENT", "development") == "production"
+    print("Is production:", is_production)
+    
+    response.set_cookie(
+        key="session_token",
+        value=session_token,
+        httponly=True,
+        secure=is_production, # True for prod (required for SameSite=None)
+        samesite="none" if is_production else "lax", # None for cross-domain (prod), Lax for local
+        max_age=90 * 24 * 60 * 60 # 90 days
+    )
+    return response
+
+@app.get("/auth/me")
+def get_current_user(session_token: Optional[str] = Cookie(None)):
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    email = verify_token(session_token, "session")
+    if not email:
+        raise HTTPException(status_code=401, detail="Invalid session")
+        
+    return {"email": email}
+
+# Dependency for protected routes
+def get_current_user_dep(session_token: Optional[str] = Cookie(None)):
+    if not session_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    email = verify_token(session_token, "session")
+    if not email:
+        raise HTTPException(status_code=401, detail="Invalid session")
+    return email
 
 class Prompt(BaseModel):
     title: str
@@ -114,3 +210,89 @@ def generate_details(request: GenerateRequest):
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/migrate")
+def migrate_embeddings():
+    """
+    One-time migration endpoint to generate embeddings for all existing prompts.
+    Call this once after switching from Qdrant to S3-based vectors.
+    Safe to run multiple times - skips prompts that already have embeddings.
+    """
+    try:
+        # Get all prompts from S3
+        all_prompts = s3_service.list_prompts()
+        
+        total = len(all_prompts)
+        processed = 0
+        skipped = 0
+        errors = 0
+        
+        results = {
+            "total_prompts": total,
+            "processed": [],
+            "skipped": [],
+            "errors": []
+        }
+        
+        for prompt in all_prompts:
+            prompt_id = prompt.get("id")
+            title = prompt.get("title", "Untitled")
+            
+            try:
+                # Check if embedding already exists
+                if not s3_service.mock_mode:
+                    try:
+                        s3_service.s3.head_object(
+                            Bucket=s3_service.bucket_name, 
+                            Key=f"embeddings/{prompt_id}.npy"
+                        )
+                        # Embedding exists, skip
+                        skipped += 1
+                        results["skipped"].append({"id": prompt_id, "title": title})
+                        continue
+                    except:
+                        # Embedding doesn't exist, need to create
+                        pass
+                
+                # Generate searchable text
+                tools_str = " ".join(prompt.get("tool_used", []) if isinstance(prompt.get("tool_used"), list) else [prompt.get("tool_used", "")])
+                searchable_text = f"{prompt.get('title', '')} {prompt.get('description', '')} {prompt.get('prompt_text', '')} {tools_str} {' '.join(prompt.get('tags', []))}"
+                
+                # Generate and save embedding
+                success = vector_service.add_point(
+                    text=searchable_text,
+                    metadata={
+                        "id": prompt_id,
+                        "title": prompt.get("title"),
+                        "description": prompt.get("description"),
+                        "tags": prompt.get("tags"),
+                        "username": prompt.get("username"),
+                        "tool_used": prompt.get("tool_used"),
+                        "prompt_text": prompt.get("prompt_text")
+                    }
+                )
+                
+                if success:
+                    processed += 1
+                    results["processed"].append({"id": prompt_id, "title": title})
+                else:
+                    errors += 1
+                    results["errors"].append({"id": prompt_id, "title": title, "error": "Failed to generate embedding"})
+                    
+            except Exception as e:
+                errors += 1
+                results["errors"].append({"id": prompt_id, "title": title, "error": str(e)})
+        
+        return {
+            "status": "success",
+            "summary": {
+                "total": total,
+                "processed": processed,
+                "skipped": skipped,
+                "errors": errors
+            },
+            "details": results
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Migration failed: {str(e)}")

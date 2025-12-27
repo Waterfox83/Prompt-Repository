@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Configuration
-BUCKET_NAME="llm-prompt-repository"
+BUCKET_NAME="pega-ai-prompt-repository"
 DIST_DIR="frontend/dist"
 
 # Check for API URL argument

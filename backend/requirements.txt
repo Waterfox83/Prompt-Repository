@@ -4,3 +4,5 @@ mangum
 boto3
 pydantic
 requests
+numpy
+pyjwt

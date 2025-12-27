@@ -2,3 +2,5 @@ fastapi
 mangum
 pydantic
 requests
+numpy
+pyjwt

@@ -1,17 +1,45 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import PromptForm from './components/PromptForm';
 import PromptList from './components/PromptList';
+import Login from './components/Login';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000').replace(/\/$/, '');
 
 import { ToastProvider, useToast } from './components/Toast';
 
 function AppContent() {
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('browse');
   const [allPrompts, setAllPrompts] = useState([]); // Store all prompts for client-side filtering
   const [displayedPrompts, setDisplayedPrompts] = useState([]); // What is currently shown
   const [loading, setLoading] = useState(false);
   const { addToast } = useToast();
+
+  // Check auth on mount
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  const checkAuth = async () => {
+    try {
+      const response = await fetch(`${API_URL}/auth/me`, {
+        credentials: 'include', // Send cookies
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data);
+        handleBrowse(); // Fetch prompts if logged in
+      } else {
+        setUser(null);
+      }
+    } catch (error) {
+      console.error("Auth check failed:", error);
+      setUser(null);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
 
   const handleSave = async (data, promptId = null) => {
     console.log("handleSave called with:", data, "promptId:", promptId); // Debug log
@@ -21,26 +49,27 @@ function AppContent() {
       const isUpdate = !!promptId;
       const url = isUpdate ? `${API_URL}/prompts/${promptId}` : `${API_URL}/prompts`;
       const method = isUpdate ? 'PUT' : 'POST';
-      
+
       const response = await fetch(url, {
         method: method,
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Send cookies
         body: JSON.stringify(data),
       });
 
       if (response.ok) {
         const result = await response.json();
         addToast(isUpdate ? 'Prompt updated successfully!' : 'Prompt saved successfully!', 'success');
-        
+
         // Track in localStorage if new
         if (!isUpdate && result.id) {
           const myPrompts = JSON.parse(localStorage.getItem('myPrompts') || '[]');
           myPrompts.push(result.id);
           localStorage.setItem('myPrompts', JSON.stringify(myPrompts));
         }
-        
+
         setActiveTab('browse');
         handleBrowse(); // Refresh list
       } else {
@@ -63,7 +92,9 @@ function AppContent() {
     }
     try {
       console.log("Fetching search results from:", `${API_URL}/search?q=${encodeURIComponent(query)}`); // Debug log
-      const response = await fetch(`${API_URL}/search?q=${encodeURIComponent(query)}`);
+      const response = await fetch(`${API_URL}/search?q=${encodeURIComponent(query)}`, {
+        credentials: 'include',
+      });
       if (response.ok) {
         const data = await response.json();
         setDisplayedPrompts(data.results);
@@ -78,7 +109,9 @@ function AppContent() {
 
   const handleBrowse = async () => {
     try {
-      const response = await fetch(`${API_URL}/prompts`);
+      const response = await fetch(`${API_URL}/prompts`, {
+        credentials: 'include',
+      });
       if (response.ok) {
         const data = await response.json();
         // Sort by date descending (newest first)
@@ -115,10 +148,18 @@ function AppContent() {
     }
   };
 
-  // Load browse results on mount
-  React.useEffect(() => {
-    handleBrowse();
-  }, []);
+  // Load browse results on mount - REMOVED, called in checkAuth
+  // React.useEffect(() => {
+  //   handleBrowse();
+  // }, []);
+
+  if (authLoading) {
+    return <div style={{ display: 'flex', justifyContent: 'center', marginTop: '4rem' }}>Loading...</div>;
+  }
+
+  if (!user) {
+    return <Login />;
+  }
 
   return (
     <div className="container">
@@ -160,10 +201,10 @@ function AppContent() {
           />
         </div>
       )}
-      
+
       {activeTab === 'edit' && (
-        <PromptForm 
-          onSave={(data) => handleSave(data, window.editingPrompt?.id)} 
+        <PromptForm
+          onSave={(data) => handleSave(data, window.editingPrompt?.id)}
           loading={loading}
           initialData={window.editingPrompt}
           onCancel={() => {
