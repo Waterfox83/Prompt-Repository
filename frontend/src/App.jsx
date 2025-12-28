@@ -14,6 +14,8 @@ function AppContent() {
   const [allPrompts, setAllPrompts] = useState([]); // Store all prompts for client-side filtering
   const [displayedPrompts, setDisplayedPrompts] = useState([]); // What is currently shown
   const [loading, setLoading] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [activeFilter, setActiveFilter] = useState(null);
   const { addToast } = useToast();
 
   // Check auth on mount
@@ -88,8 +90,11 @@ function AppContent() {
     if (!query.trim()) {
       console.log("Query empty, resetting to all prompts"); // Debug log
       setDisplayedPrompts(allPrompts); // Reset if empty
+      setActiveFilter(null);
       return;
     }
+    setSearchLoading(true);
+    setActiveFilter(null); // Clear filter on search
     try {
       console.log("Fetching search results from:", `${API_URL}/search?q=${encodeURIComponent(query)}`); // Debug log
       const response = await fetch(`${API_URL}/search?q=${encodeURIComponent(query)}`, {
@@ -104,6 +109,8 @@ function AppContent() {
     } catch (error) {
       console.error('Error searching prompts:', error);
       addToast('Error searching prompts. Is the backend running?', 'error');
+    } finally {
+      setSearchLoading(false);
     }
   };
 
@@ -120,6 +127,7 @@ function AppContent() {
         });
         setAllPrompts(sorted);
         setDisplayedPrompts(sorted);
+        setActiveFilter(null);
       } else {
         addToast('Failed to fetch prompts.', 'error');
       }
@@ -130,6 +138,7 @@ function AppContent() {
   };
 
   const handleFilter = (type, value) => {
+    setActiveFilter({ type, value });
     if (type === 'tag') {
       const filtered = allPrompts.filter(p => p.tags && p.tags.includes(value));
       setDisplayedPrompts(filtered);
@@ -146,6 +155,11 @@ function AppContent() {
       const filtered = allPrompts.filter(p => p.username === value);
       setDisplayedPrompts(filtered);
     }
+  };
+
+  const clearFilter = () => {
+    setDisplayedPrompts(allPrompts);
+    setActiveFilter(null);
   };
 
   // Load browse results on mount - REMOVED, called in checkAuth
@@ -171,6 +185,7 @@ function AppContent() {
           onClick={() => {
             setActiveTab('browse');
             setDisplayedPrompts(allPrompts); // Reset filters
+            setActiveFilter(null);
           }}
         >
           Browse All
@@ -192,7 +207,10 @@ function AppContent() {
           <PromptList
             onSearch={handleSearch}
             results={displayedPrompts}
+            loading={searchLoading}
             onFilter={handleFilter}
+            activeFilter={activeFilter}
+            onClearFilter={clearFilter}
             onEdit={(prompt) => {
               setActiveTab('edit');
               // Pass the prompt data to edit

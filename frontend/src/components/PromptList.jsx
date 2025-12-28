@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useToast } from './Toast';
 
-const PromptList = ({ onSearch, results, onFilter, onEdit }) => {
+const PromptList = ({ onSearch, results, loading, onFilter, activeFilter, onClearFilter, onEdit }) => {
     const [query, setQuery] = useState('');
     const [selectedPrompt, setSelectedPrompt] = useState(null);
     const { addToast } = useToast();
-    
+
     // Check if prompt was created in this session
     const canEdit = (promptId) => {
         const myPrompts = JSON.parse(localStorage.getItem('myPrompts') || '[]');
@@ -34,9 +34,66 @@ const PromptList = ({ onSearch, results, onFilter, onEdit }) => {
                         placeholder="Search by meaning (e.g., 'help me debug python code')..."
                         style={{ flex: 1 }}
                     />
-                    <button type="submit" className="btn btn-primary">Search</button>
+                    <button
+                        type="submit"
+                        className="btn btn-primary"
+                        disabled={loading}
+                        style={{ minWidth: '100px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                        {loading ? (
+                            <>
+                                <span className="spinner" style={{
+                                    width: '16px',
+                                    height: '16px',
+                                    border: '2px solid rgba(255,255,255,0.3)',
+                                    borderTop: '2px solid white',
+                                    borderRadius: '50%',
+                                    marginRight: '8px',
+                                    animation: 'spin 1s linear infinite'
+                                }}></span>
+                                Searching...
+                            </>
+                        ) : 'Search'}
+                    </button>
+                    <style>{`
+                        @keyframes spin {
+                            0% { transform: rotate(0deg); }
+                            100% { transform: rotate(360deg); }
+                        }
+                    `}</style>
                 </form>
             </div>
+
+            {activeFilter && (
+                <div style={{
+                    marginBottom: '1rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    background: 'rgba(56, 189, 248, 0.1)',
+                    padding: '0.5rem 1rem',
+                    borderRadius: '0.5rem',
+                    border: '1px solid rgba(56, 189, 248, 0.2)',
+                    color: '#e2e8f0'
+                }}>
+                    <span>Filtered by <strong>{activeFilter.type}</strong>: <span style={{ color: '#38bdf8', fontWeight: 'bold' }}>{activeFilter.value}</span></span>
+                    <button
+                        onClick={onClearFilter}
+                        style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#94a3b8',
+                            cursor: 'pointer',
+                            fontSize: '1.2rem',
+                            padding: '0 0.5rem',
+                            marginLeft: 'auto'
+                        }}
+                        title="Clear filter"
+                    >
+                        &times;
+                    </button>
+                </div>
+            )}
 
             <div className="grid">
                 {results.map((item) => (
@@ -122,7 +179,7 @@ const PromptList = ({ onSearch, results, onFilter, onEdit }) => {
                                 <button
                                     className="btn"
                                     onClick={() => onEdit && onEdit(item)}
-                                    style={{ 
+                                    style={{
                                         flex: 1,
                                         background: '#059669',
                                         color: 'white'

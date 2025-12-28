@@ -309,79 +309,140 @@ class VectorService:
             print(f"Error generating embedding via REST: {e}")
             return None
 
+    def _normalize(self, vector):
+        """Normalizes a vector to unit length."""
+        norm = np.linalg.norm(vector)
+        if norm == 0:
+            return vector
+        return vector / norm
+
+    def _load_all_embeddings(self):
+        """
+        Downloads vectors.npy and ids.json from S3.
+        Returns (ids, matrix, etag_vectors).
+        matrix is memory-mapped.
+        """
+        if self.mock_mode or self.s3_service.mock_mode:
+            return [], None, None
+
+        try:
+            import tempfile
+            
+            # 1. Load IDs (Small, load into memory)
+            ids = []
+            try:
+                response = self.s3.get_object(Bucket=self.bucket_name, Key="embeddings/ids.json")
+                ids = json.loads(response['Body'].read().decode('utf-8'))
+            except ClientError as e:
+                if e.response['Error']['Code'] != "NoSuchKey":
+                    print(f"Error loading IDs: {e}")
+            
+            # 2. Load Vectors (Large, mmap)
+            matrix = None
+            etag = None
+            try:
+                # Create a temp file
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.npy') as tmp:
+                    temp_path = tmp.name
+                
+                response = self.s3.get_object(Bucket=self.bucket_name, Key="embeddings/vectors.npy")
+                etag = response['ETag']
+                content = response['Body'].read()
+                with open(temp_path, 'wb') as f:
+                    f.write(content)
+                
+                # Load with mmap_mode
+                matrix = np.load(temp_path, mmap_mode='r')
+            except ClientError as e:
+                if e.response['Error']['Code'] == "NoSuchKey":
+                    matrix = np.empty((0, 768), dtype=np.float32)
+                else:
+                    raise e
+            
+            return ids, matrix, etag
+            
+        except Exception as e:
+            print(f"Error loading all embeddings: {e}")
+            return [], np.empty((0, 768), dtype=np.float32), None
+
     def _save_embedding_to_s3(self, prompt_id: str, embedding: list):
-        """Saves embedding vector to S3 as numpy array."""
+        """
+        Saves embedding to S3 by appending to vectors.npy and ids.json.
+        Uses Optimistic Locking (ETag of vectors.npy) to handle concurrency.
+        """
         if self.mock_mode or self.s3_service.mock_mode:
             return
         
-        try:
-            # Convert to numpy array
-            embedding_array = np.array(embedding, dtype=np.float32)
-            
-            # Save to bytes buffer
-            buffer = io.BytesIO()
-            np.save(buffer, embedding_array)
-            buffer.seek(0)
-            
-            # Upload to S3
-            key = f"embeddings/{prompt_id}.npy"
-            self.s3.put_object(
-                Bucket=self.bucket_name,
-                Key=key,
-                Body=buffer.getvalue(),
-                ContentType='application/octet-stream'
-            )
-            print(f"Saved embedding to S3: {key}")
-        except Exception as e:
-            print(f"Error saving embedding to S3: {e}")
-
-    def _load_embedding_from_s3(self, prompt_id: str):
-        """Loads embedding vector from S3."""
-        try:
-            key = f"embeddings/{prompt_id}.npy"
-            response = self.s3.get_object(Bucket=self.bucket_name, Key=key)
-            buffer = io.BytesIO(response['Body'].read())
-            embedding = np.load(buffer)
-            return embedding
-        except Exception as e:
-            print(f"Error loading embedding from S3 for {prompt_id}: {e}")
-            return None
-
-    def _load_all_embeddings(self):
-        """Loads all embeddings from S3."""
-        embeddings = {}
-        try:
-            # List all embedding files
-            response = self.s3.list_objects_v2(Bucket=self.bucket_name, Prefix='embeddings/')
-            
-            if 'Contents' not in response:
-                return embeddings
-            
-            for obj in response['Contents']:
-                key = obj['Key']
-                if key.endswith('.npy'):
-                    # Extract prompt_id from filename
-                    prompt_id = key.split('/')[-1].replace('.npy', '')
-                    embedding = self._load_embedding_from_s3(prompt_id)
-                    if embedding is not None:
-                        embeddings[prompt_id] = embedding
-            
-            print(f"Loaded {len(embeddings)} embeddings from S3")
-            return embeddings
-        except Exception as e:
-            print(f"Error loading embeddings from S3: {e}")
-            return {}
-
-    def _cosine_similarity(self, vec1, vec2):
-        """Computes cosine similarity between two vectors."""
-        vec1 = np.array(vec1)
-        vec2 = np.array(vec2)
-        dot_product = np.dot(vec1, vec2)
-        norm1 = np.linalg.norm(vec1)
-        norm2 = np.linalg.norm(vec2)
-        if norm1 == 0 or norm2 == 0:
-            return 0.0
-        return dot_product / (norm1 * norm2)
+        import tempfile
+        import random
+        
+        max_retries = 3
+        
+        # Normalize the new vector
+        new_vector = self._normalize(np.array(embedding, dtype=np.float32))
+        
+        for attempt in range(max_retries):
+            try:
+                # 1. Load existing data
+                ids, matrix, etag = self._load_all_embeddings()
+                
+                # 2. Append new data
+                # Note: We cannot append to mmap, so we must load full into RAM for writing
+                # For very large datasets, this write path needs a different approach (e.g., append-only files),
+                # but for this scale, loading to RAM for write is fine.
+                if hasattr(matrix, 'files'): # Handle np.load return types if any
+                    matrix = np.array(matrix)
+                else:
+                    # If it's mmap, copy to RAM to modify
+                    matrix = np.array(matrix)
+                
+                ids.append(prompt_id)
+                if matrix.shape[0] == 0:
+                    matrix = np.array([new_vector])
+                else:
+                    matrix = np.vstack([matrix, new_vector])
+                
+                # 3. Save IDs to JSON
+                self.s3.put_object(
+                    Bucket=self.bucket_name,
+                    Key="embeddings/ids.json",
+                    Body=json.dumps(ids),
+                    ContentType='application/json'
+                )
+                
+                # 4. Save Matrix to Buffer
+                buffer = io.BytesIO()
+                np.save(buffer, matrix)
+                buffer.seek(0)
+                
+                # 5. Upload Matrix with If-Match
+                put_kwargs = {
+                    'Bucket': self.bucket_name,
+                    'Key': "embeddings/vectors.npy",
+                    'Body': buffer.getvalue(),
+                    'ContentType': 'application/octet-stream'
+                }
+                
+                if etag:
+                    put_kwargs['IfMatch'] = etag
+                
+                self.s3.put_object(**put_kwargs)
+                print(f"Successfully saved embedding for {prompt_id} (Attempt {attempt+1})")
+                return
+                
+            except ClientError as e:
+                if e.response['Error']['Code'] == 'PreconditionFailed':
+                    print(f"Concurrency conflict saving embedding (Attempt {attempt+1}). Retrying...")
+                    time.sleep(random.uniform(0.1, 0.5)) # Jitter
+                    continue
+                else:
+                    print(f"Error saving embedding to S3: {e}")
+                    return
+            except Exception as e:
+                print(f"Unexpected error saving embedding: {e}")
+                return
+        
+        print(f"Failed to save embedding after {max_retries} attempts due to concurrency.")
 
     def add_point(self, text: str, metadata: dict):
         """Generates and saves embedding to S3."""
@@ -395,14 +456,14 @@ class VectorService:
             print("Skipping vector add: No embedding generated.")
             return False
 
-        # 2. Save embedding to S3
+        # 2. Save embedding to S3 (Optimized)
         prompt_id = metadata.get("id")
         self._save_embedding_to_s3(prompt_id, vector)
         print(f"Successfully saved embedding for: {metadata.get('title')}")
         return True
 
     def search(self, query_text: str, limit: int = 5):
-        """Searches using S3-stored embeddings."""
+        """Searches using S3-stored embeddings (Optimized Matrix Search)."""
         if self.mock_mode:
             return self._mock_search(query_text)
 
@@ -413,36 +474,49 @@ class VectorService:
             print("Fallback to mock search (no embedding)")
             return self._mock_search(query_text)
 
-        # 2. Load all embeddings from S3
-        all_embeddings = self._load_all_embeddings()
+        # 2. Load all embeddings (Matrix)
+        ids, matrix, _ = self._load_all_embeddings()
         
-        if not all_embeddings:
+        if not ids or matrix is None or len(ids) == 0:
             print("No embeddings found, falling back to mock search")
             return self._mock_search(query_text)
 
-        # 3. Compute similarities
-        similarities = []
-        for prompt_id, embedding in all_embeddings.items():
-            similarity = self._cosine_similarity(query_vector, embedding)
-            similarities.append({
-                "id": prompt_id,
-                "score": float(similarity)
-            })
+        # 3. Normalize query vector
+        query_vector = self._normalize(np.array(query_vector, dtype=np.float32))
+
+        # 4. Compute similarities (Dot Product)
+        # Matrix shape: (N, D), Query shape: (D,) -> Result: (N,)
+        try:
+            similarities = np.dot(matrix, query_vector)
+        except ValueError as e:
+            print(f"Shape mismatch in dot product: {e}")
+            return []
         
-        # 4. Sort by similarity (highest first)
-        similarities.sort(key=lambda x: x["score"], reverse=True)
+        # 5. Sort and get top K
+        # Get indices of top K scores (unsorted)
+        if len(similarities) <= limit:
+            top_indices = np.arange(len(similarities))
+        else:
+            # argpartition is faster than argsort for top K
+            top_indices = np.argpartition(similarities, -limit)[-limit:]
         
-        # 5. Get top K results and fetch metadata from S3
+        # Sort the top K indices by score descending
+        top_indices = top_indices[np.argsort(similarities[top_indices])[::-1]]
+        
+        # 6. Fetch metadata
         results = []
         all_prompts = self.s3_service.list_prompts()
         prompt_dict = {p["id"]: p for p in all_prompts}
         
-        for item in similarities[:limit]:
-            prompt_id = item["id"]
-            if prompt_id in prompt_dict:
-                result = prompt_dict[prompt_id].copy()
-                result["score"] = item["score"]
-                results.append(result)
+        for idx in top_indices:
+            if idx < len(ids):
+                prompt_id = ids[idx]
+                score = float(similarities[idx])
+                
+                if prompt_id in prompt_dict:
+                    result = prompt_dict[prompt_id].copy()
+                    result["score"] = score
+                    results.append(result)
         
         print(f"Found {len(results)} results for query: {query_text}")
         return results

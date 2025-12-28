@@ -215,22 +215,25 @@ def generate_details(request: GenerateRequest):
 def migrate_embeddings():
     """
     One-time migration endpoint to generate embeddings for all existing prompts.
-    Call this once after switching from Qdrant to S3-based vectors.
-    Safe to run multiple times - skips prompts that already have embeddings.
+    Rebuilds the 'all_embeddings.npy' file from scratch.
     """
     try:
+        import numpy as np
+        import io
+        
         # Get all prompts from S3
         all_prompts = s3_service.list_prompts()
         
         total = len(all_prompts)
         processed = 0
-        skipped = 0
         errors = 0
+        
+        ids = []
+        vectors = []
         
         results = {
             "total_prompts": total,
             "processed": [],
-            "skipped": [],
             "errors": []
         }
         
@@ -239,40 +242,23 @@ def migrate_embeddings():
             title = prompt.get("title", "Untitled")
             
             try:
-                # Check if embedding already exists
-                if not s3_service.mock_mode:
-                    try:
-                        s3_service.s3.head_object(
-                            Bucket=s3_service.bucket_name, 
-                            Key=f"embeddings/{prompt_id}.npy"
-                        )
-                        # Embedding exists, skip
-                        skipped += 1
-                        results["skipped"].append({"id": prompt_id, "title": title})
-                        continue
-                    except:
-                        # Embedding doesn't exist, need to create
-                        pass
-                
                 # Generate searchable text
                 tools_str = " ".join(prompt.get("tool_used", []) if isinstance(prompt.get("tool_used"), list) else [prompt.get("tool_used", "")])
                 searchable_text = f"{prompt.get('title', '')} {prompt.get('description', '')} {prompt.get('prompt_text', '')} {tools_str} {' '.join(prompt.get('tags', []))}"
                 
-                # Generate and save embedding
-                success = vector_service.add_point(
-                    text=searchable_text,
-                    metadata={
-                        "id": prompt_id,
-                        "title": prompt.get("title"),
-                        "description": prompt.get("description"),
-                        "tags": prompt.get("tags"),
-                        "username": prompt.get("username"),
-                        "tool_used": prompt.get("tool_used"),
-                        "prompt_text": prompt.get("prompt_text")
-                    }
-                )
+                # Generate embedding
+                vector = vector_service._get_embedding_rest(searchable_text)
                 
-                if success:
+                if vector:
+                    # Normalize
+                    vec_array = np.array(vector, dtype=np.float32)
+                    norm = np.linalg.norm(vec_array)
+                    if norm > 0:
+                        vec_array = vec_array / norm
+                        
+                    ids.append(prompt_id)
+                    vectors.append(vec_array)
+                    
                     processed += 1
                     results["processed"].append({"id": prompt_id, "title": title})
                 else:
@@ -283,12 +269,38 @@ def migrate_embeddings():
                 errors += 1
                 results["errors"].append({"id": prompt_id, "title": title, "error": str(e)})
         
+        # Save to S3
+        if not s3_service.mock_mode and len(vectors) > 0:
+            import json
+            
+            # 1. Save Matrix (vectors.npy)
+            matrix = np.vstack(vectors)
+            buffer = io.BytesIO()
+            np.save(buffer, matrix)
+            buffer.seek(0)
+            
+            s3_service.s3.put_object(
+                Bucket=s3_service.bucket_name,
+                Key="embeddings/vectors.npy",
+                Body=buffer.getvalue(),
+                ContentType='application/octet-stream'
+            )
+            
+            # 2. Save IDs (ids.json)
+            s3_service.s3.put_object(
+                Bucket=s3_service.bucket_name,
+                Key="embeddings/ids.json",
+                Body=json.dumps(ids),
+                ContentType='application/json'
+            )
+            
+            print(f"Successfully migrated {len(vectors)} embeddings to vectors.npy and ids.json.")
+        
         return {
             "status": "success",
             "summary": {
                 "total": total,
                 "processed": processed,
-                "skipped": skipped,
                 "errors": errors
             },
             "details": results
