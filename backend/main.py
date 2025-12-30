@@ -129,6 +129,7 @@ class Prompt(BaseModel):
     prompt_text: str
     tags: List[str]
     username: Optional[str] = None
+    owner_email: Optional[str] = None
 
 class GenerateRequest(BaseModel):
     title: str
@@ -139,8 +140,11 @@ def read_root():
     return {"message": "AI Prompt Repository API is running"}
 
 @app.post("/prompts")
-def create_prompt(prompt: Prompt):
+def create_prompt(prompt: Prompt, user_email: str = Depends(get_current_user_dep)):
     try:
+        # Set owner email
+        prompt.owner_email = user_email
+        
         # 1. Save full details to S3
         prompt_dict = prompt.dict()
         prompt_id = s3_service.save_prompt(prompt_dict)
@@ -171,11 +175,36 @@ def list_prompts():
     return {"results": s3_service.list_prompts()}
 
 @app.put("/prompts/{prompt_id}")
-def update_prompt(prompt_id: str, prompt: Prompt):
+def update_prompt(prompt_id: str, prompt: Prompt, user_email: str = Depends(get_current_user_dep)):
     try:
+        # Verify ownership
+        try:
+            # We need to fetch the existing prompt to check ownership
+            # Since s3_service.list_prompts() might be heavy, we should ideally have get_prompt
+            # But for now, we can rely on list_prompts filtering or add get_prompt to service
+            # Let's use list_prompts and filter for now as it's MVP
+            all_prompts = s3_service.list_prompts()
+            existing_prompt = next((p for p in all_prompts if p['id'] == prompt_id), None)
+            
+            if not existing_prompt:
+                raise HTTPException(status_code=404, detail="Prompt not found")
+                
+            # Check if current user is the owner
+            # Note: Old prompts might not have owner_email, so they are uneditable by default
+            if existing_prompt.get('owner_email') != user_email:
+                raise HTTPException(status_code=403, detail="You are not authorized to edit this prompt")
+                
+        except Exception as e:
+            if isinstance(e, HTTPException):
+                raise e
+            # If any other error (e.g. S3 down), let it bubble up or handle
+            pass
+
         # Update in S3
         prompt_dict = prompt.dict()
         prompt_dict['id'] = prompt_id
+        prompt_dict['owner_email'] = user_email # Ensure owner is preserved/set
+
         s3_service.update_prompt(prompt_id, prompt_dict)
         
         # Update vector database
@@ -308,3 +337,43 @@ def migrate_embeddings():
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Migration failed: {str(e)}")
+
+@app.post("/migrate-owners")
+def migrate_owners():
+    """
+    One-time migration to backfill owner_email based on username.
+    """
+    try:
+        MAPPING = {
+            "Rahul Singh Rathore": "RahulSingh.Rathore@in.pega.com",
+            "Devi Vara Prasad B": "DeviVaraPrasad.Bandaru@in.pega.com",
+            "Stuti": "Stuti.Bhushan@in.pega.com",
+            "Abhishek": "abhishek.asthana@pega.com",
+            "Parth": "ParthPandya.Alkeshbhai@in.pega.com"
+        }
+        
+        all_prompts = s3_service.list_prompts()
+        updated_count = 0
+        updated_prompts = []
+        
+        for prompt in all_prompts:
+            username = prompt.get("username")
+            # Check if username matches (case-insensitive or exact? Let's do exact as per request, maybe strip)
+            if username:
+                username_clean = username.strip()
+                if username_clean in MAPPING:
+                    new_email = MAPPING[username_clean]
+                    # Only update if different or missing
+                    if prompt.get("owner_email") != new_email:
+                        prompt["owner_email"] = new_email
+                        s3_service.update_prompt(prompt["id"], prompt)
+                        updated_count += 1
+                        updated_prompts.append({"id": prompt["id"], "title": prompt.get("title"), "username": username, "new_email": new_email})
+        
+        return {
+            "status": "success",
+            "message": f"Updated {updated_count} prompts with owner emails.",
+            "details": updated_prompts
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Owner migration failed: {str(e)}")

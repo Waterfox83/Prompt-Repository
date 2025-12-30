@@ -2,17 +2,18 @@
 
 # Check for API URL argument
 if [ -z "$1" ]; then
-    echo "⚠️  No API URL provided."
-    echo "   Usage: ./build_frontend_manual.sh <YOUR_BACKEND_API_URL>"
-    echo "   Example: ./build_frontend_manual.sh https://xyz.lambda-url.us-east-1.on.aws"
-    echo ""
-    read -p "Enter your Backend API URL (or press Enter to use localhost): " USER_URL
+    export VITE_API_URL="https://w62sqtrnrr6jg4edeenhewezxy0hsudd.lambda-url.us-east-1.on.aws"
+    # echo "⚠️  No API URL provided."
+    # echo "   Usage: ./build_frontend_manual.sh <YOUR_BACKEND_API_URL>"
+    # echo "   Example: ./build_frontend_manual.sh https://xyz.lambda-url.us-east-1.on.aws"
+    # echo ""
+    # read -p "Enter your Backend API URL (or press Enter to use localhost): " USER_URL
     
-    if [ -z "$USER_URL" ]; then
-        echo "Using default: http://127.0.0.1:8000"
-    else
-        export VITE_API_URL="$USER_URL"
-    fi
+    # if [ -z "$USER_URL" ]; then
+    #     echo "Using default: http://127.0.0.1:8000"
+    # else
+    #     export VITE_API_URL="$USER_URL"
+    # fi
 else
     export VITE_API_URL="$1"
 fi

@@ -57,7 +57,7 @@ function Login() {
         return (
             <div className="login-container" style={{ maxWidth: '500px', margin: '4rem auto', padding: '2rem', border: '1px solid #eee', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
                 <h2 style={{ marginBottom: '1rem' }}>✉️ Verification Required (Step 1 of 2)</h2>
-                <p>It looks like this is your first time logging in! To keep our data secure, we need you to verify your email address with our system.</p>
+                <p>It looks like this is your first time logging in! You need to verify your email address.</p>
 
                 <ol style={{ textAlign: 'left', margin: '1.5rem 0', paddingLeft: '1.5rem' }}>
                     <li style={{ marginBottom: '0.5rem' }}>Check your inbox for an email from <strong>Amazon Web Services</strong> (no-reply-aws@amazon.com).</li>
@@ -92,12 +92,12 @@ function Login() {
         return (
             <div className="login-container" style={{ maxWidth: '400px', margin: '4rem auto', textAlign: 'center' }}>
                 <h2>🚀 Magic Link Sent! (Step 2 of 2)</h2>
-                <p>Your identity is confirmed. We have sent a private login link to your email.</p>
+                <p>Your email has been verified. We have sent a private login link to your email.</p>
                 <div style={{ margin: '2rem 0', padding: '1rem', background: '#f8f9fa', borderRadius: '4px', textAlign: 'left', color: '#333' }}>
-                    <p style={{ margin: '0.5rem 0' }}><strong>From:</strong> Prompt Repo Bot</p>
+                    <p style={{ margin: '0.5rem 0' }}><strong>From:</strong> PromptRepoAccess@outlook.com</p>
                     <p style={{ margin: '0.5rem 0' }}><strong>Expires in:</strong> 15 minutes</p>
                 </div>
-                <p>Close this window and click the link in your email to enter the repository.</p>
+                <p style={{ marginTop: '1.5rem', fontSize: '0.8rem', color: '#888', textAlign: 'center' }}>If you do not see the email in your inbox, please check your Junk or Spam folder. To ensure future messages are delivered correctly, move the email to your primary inbox.</p>
                 <button className="btn btn-secondary" onClick={handleRetry} style={{ marginTop: '1rem' }}>
                     Try another email
                 </button>

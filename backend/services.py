@@ -68,10 +68,15 @@ class SESService:
         body_html = f"""<html>
 <head></head>
 <body>
-  <h1>Login to Prompt Repository</h1>
-  <p>Click the link below to log in. This link is valid for 15 minutes.</p>
-  <p><a href='{magic_link}'>Log In</a></p>
-  <p>If you didn't request this, please ignore this email.</p>
+  <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
+    <h1 style="color: #3b82f6; text-align: center;">Login to Prompt Repository</h1>
+    <p style="font-size: 16px; line-height: 1.5; text-align: center; color: #555;">Click the button below to log in. This link is valid for 15 minutes.</p>
+    <div style="text-align: center; margin: 30px 0;">
+      <!-- Using solid background color for better email client compatibility -->
+      <a href='{magic_link}' style="display: inline-block; padding: 14px 28px; background-color: #3b82f6; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">Login to Repository</a>
+    </div>
+    <p style="font-size: 16px; color: #888; text-align: center;">If you didn't request this, please ignore this email.</p>
+  </div>
 </body>
 </html>"""
 
@@ -386,23 +391,29 @@ class VectorService:
                 # 1. Load existing data
                 ids, matrix, etag = self._load_all_embeddings()
                 
-                # 2. Append new data
-                # Note: We cannot append to mmap, so we must load full into RAM for writing
-                # For very large datasets, this write path needs a different approach (e.g., append-only files),
-                # but for this scale, loading to RAM for write is fine.
+                # 2. Prepare data for modification
                 if hasattr(matrix, 'files'): # Handle np.load return types if any
                     matrix = np.array(matrix)
                 else:
                     # If it's mmap, copy to RAM to modify
                     matrix = np.array(matrix)
                 
-                ids.append(prompt_id)
-                if matrix.shape[0] == 0:
-                    matrix = np.array([new_vector])
+                # 3. Check if ID exists and Update or Append
+                if prompt_id in ids:
+                    # Update existing
+                    idx = ids.index(prompt_id)
+                    matrix[idx] = new_vector
+                    print(f"Updated existing embedding for {prompt_id} at index {idx}")
                 else:
-                    matrix = np.vstack([matrix, new_vector])
+                    # Append new
+                    ids.append(prompt_id)
+                    if matrix.shape[0] == 0:
+                        matrix = np.array([new_vector])
+                    else:
+                        matrix = np.vstack([matrix, new_vector])
+                    print(f"Appended new embedding for {prompt_id}")
                 
-                # 3. Save IDs to JSON
+                # 4. Save IDs to JSON
                 self.s3.put_object(
                     Bucket=self.bucket_name,
                     Key="embeddings/ids.json",
@@ -410,12 +421,12 @@ class VectorService:
                     ContentType='application/json'
                 )
                 
-                # 4. Save Matrix to Buffer
+                # 5. Save Matrix to Buffer
                 buffer = io.BytesIO()
                 np.save(buffer, matrix)
                 buffer.seek(0)
                 
-                # 5. Upload Matrix with If-Match
+                # 6. Upload Matrix with If-Match
                 put_kwargs = {
                     'Bucket': self.bucket_name,
                     'Key': "embeddings/vectors.npy",

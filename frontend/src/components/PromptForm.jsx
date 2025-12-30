@@ -12,7 +12,7 @@ const PromptForm = ({ onSave, loading, initialData = null, onCancel = null }) =>
     const [tags, setTags] = useState(initialData?.tags ? initialData.tags.join(', ') : '');
     const [username, setUsername] = useState(initialData?.username || '');
     const { addToast } = useToast();
-    
+
     const isEditing = !!initialData;
 
     const PREDEFINED_TOOLS = [
@@ -105,7 +105,7 @@ const PromptForm = ({ onSave, loading, initialData = null, onCancel = null }) =>
             tags: tagsList,
             username: username.trim() || null
         });
-        
+
         // Reset form only if not editing
         if (!isEditing) {
             setTitle('');
@@ -121,19 +121,6 @@ const PromptForm = ({ onSave, loading, initialData = null, onCancel = null }) =>
     return (
         <div className="card">
             <h2>{isEditing ? 'Edit Prompt' : 'Add New Prompt'}</h2>
-            {!isEditing && (
-                <div style={{
-                    background: 'rgba(34, 197, 94, 0.1)',
-                    border: '1px solid rgba(34, 197, 94, 0.3)',
-                    borderRadius: '0.5rem',
-                    padding: '0.75rem 1rem',
-                    marginBottom: '1.5rem',
-                    color: '#86efac',
-                    fontSize: '0.9rem'
-                }}>
-                    💡 <strong>Tip:</strong> You can edit any prompt you create during this session. Once you close your browser, the edit option will no longer be available.
-                </div>
-            )}
             <form onSubmit={handleSubmit}>
                 <div className="grid grid-cols-2 mb-4">
                     <div>

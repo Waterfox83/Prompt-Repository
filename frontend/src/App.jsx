@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import PromptForm from './components/PromptForm';
 import PromptList from './components/PromptList';
 import Login from './components/Login';
+import AboutModal from './components/AboutModal';
 
 const API_URL = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000').replace(/\/$/, '');
 
@@ -16,6 +17,7 @@ function AppContent() {
   const [loading, setLoading] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [activeFilter, setActiveFilter] = useState(null);
+  const [showAbout, setShowAbout] = useState(false);
   const { addToast } = useToast();
 
   // Check auth on mount
@@ -176,12 +178,45 @@ function AppContent() {
   }
 
   return (
-    <div className="container">
-      <h1>Prompt Repository</h1>
+    <div className="container" style={{ position: 'relative' }}>
+      <button
+        onClick={() => setShowAbout(true)}
+        style={{
+          position: 'absolute',
+          top: '2rem',
+          right: '2rem',
+          background: 'transparent',
+          border: 'none',
+          color: '#94a3b8',
+          cursor: 'pointer',
+          fontSize: '0.9rem',
+          textDecoration: 'underline',
+          zIndex: 10
+        }}
+      >
+        About
+      </button>
+
+      <h1 style={{ marginTop: 0 }}>AI Prompt Repository</h1>
 
       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '2rem', gap: '1rem' }}>
         <button
-          className={`btn ${activeTab === 'browse' ? 'btn-primary' : 'btn-secondary'}`}
+          className={`btn ${activeFilter?.type === 'my-prompts' ? 'btn-primary' : 'btn-secondary'}`}
+          onClick={() => {
+            setActiveTab('browse');
+            if (user && user.email) {
+              const myPrompts = allPrompts.filter(p => p.owner_email === user.email);
+              setDisplayedPrompts(myPrompts);
+              setActiveFilter({ type: 'my-prompts', value: 'My Prompts' });
+            } else {
+              addToast('User email not found.', 'error');
+            }
+          }}
+        >
+          My Prompts
+        </button>
+        <button
+          className={`btn ${activeTab === 'browse' && activeFilter?.type !== 'my-prompts' ? 'btn-primary' : 'btn-secondary'}`}
           onClick={() => {
             setActiveTab('browse');
             setDisplayedPrompts(allPrompts); // Reset filters
@@ -216,6 +251,7 @@ function AppContent() {
               // Pass the prompt data to edit
               window.editingPrompt = prompt;
             }}
+            user={user}
           />
         </div>
       )}
@@ -231,6 +267,8 @@ function AppContent() {
           }}
         />
       )}
+
+      {showAbout && <AboutModal onClose={() => setShowAbout(false)} />}
     </div>
   );
 }

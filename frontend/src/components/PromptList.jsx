@@ -1,15 +1,21 @@
 import React, { useState } from 'react';
 import { useToast } from './Toast';
 
-const PromptList = ({ onSearch, results, loading, onFilter, activeFilter, onClearFilter, onEdit }) => {
+const PromptList = ({ onSearch, results, loading, onFilter, activeFilter, onClearFilter, onEdit, user }) => {
     const [query, setQuery] = useState('');
     const [selectedPrompt, setSelectedPrompt] = useState(null);
     const { addToast } = useToast();
 
-    // Check if prompt was created in this session
-    const canEdit = (promptId) => {
-        const myPrompts = JSON.parse(localStorage.getItem('myPrompts') || '[]');
-        return myPrompts.includes(promptId);
+    // Check if prompt was created by current user
+    const canEdit = (prompt) => {
+        if (!user || !prompt) return false;
+        // Check if owner_email matches
+        if (prompt.owner_email && prompt.owner_email === user.email) return true;
+
+        // Fallback for session-created prompts (optional, but good for UX if backend sync is slow)
+        // But for security, we should rely on backend data. 
+        // Let's stick to owner_email check as primary.
+        return false;
     };
 
     const handleSearch = (e) => {
@@ -26,7 +32,7 @@ const PromptList = ({ onSearch, results, loading, onFilter, activeFilter, onClea
     return (
         <div>
             <div className="card mb-4">
-                <h2>Search Repository</h2>
+                <h2 style={{ marginTop: 0 }}>Search Repository</h2>
                 <form onSubmit={handleSearch} className="flex gap-2">
                     <input
                         value={query}
@@ -76,7 +82,11 @@ const PromptList = ({ onSearch, results, loading, onFilter, activeFilter, onClea
                     border: '1px solid rgba(56, 189, 248, 0.2)',
                     color: '#e2e8f0'
                 }}>
-                    <span>Filtered by <strong>{activeFilter.type}</strong>: <span style={{ color: '#38bdf8', fontWeight: 'bold' }}>{activeFilter.value}</span></span>
+                    {activeFilter.type === 'my-prompts' ? (
+                        <span><span style={{ color: '#38bdf8', fontWeight: 'bold' }}>My prompts</span></span>
+                    ) : (
+                        <span>Filtered by <strong>{activeFilter.type}</strong>: <span style={{ color: '#38bdf8', fontWeight: 'bold' }}>{activeFilter.value}</span></span>
+                    )}
                     <button
                         onClick={onClearFilter}
                         style={{
@@ -159,7 +169,7 @@ const PromptList = ({ onSearch, results, loading, onFilter, activeFilter, onClea
                         </div>
 
                         <div className="flex gap-2">
-                            {!canEdit(item.id) && (
+                            {!canEdit(item) && (
                                 <button
                                     className="btn btn-secondary"
                                     onClick={() => copyToClipboard(item.prompt_text || "Prompt text not available")}
@@ -175,7 +185,7 @@ const PromptList = ({ onSearch, results, loading, onFilter, activeFilter, onClea
                             >
                                 View Prompt
                             </button>
-                            {canEdit(item.id) && (
+                            {canEdit(item) && (
                                 <button
                                     className="btn"
                                     onClick={() => onEdit && onEdit(item)}
@@ -184,7 +194,7 @@ const PromptList = ({ onSearch, results, loading, onFilter, activeFilter, onClea
                                         background: '#059669',
                                         color: 'white'
                                     }}
-                                    title="You can edit this because you created it in this session"
+                                    title="You can edit this because you are the owner"
                                 >
                                     Edit
                                 </button>
@@ -194,7 +204,7 @@ const PromptList = ({ onSearch, results, loading, onFilter, activeFilter, onClea
                 ))}
 
                 {results.length === 0 && (
-                    <div style={{ textAlign: 'center', color: '#64748b', padding: '2rem' }}>
+                    <div style={{ textAlign: 'center', color: '#64748b', padding: '2rem', gridColumn: '1 / -1' }}>
                         No results found. Try searching or add a new prompt!
                     </div>
                 )}
