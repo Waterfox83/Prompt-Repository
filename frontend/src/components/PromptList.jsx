@@ -232,6 +232,10 @@ const PromptList = ({ onSearch, results, loading, onFilter, activeFilter, onClea
                             )}
                         </div>
 
+                        <div style={{ fontSize: '0.75rem', color: '#475569', marginBottom: '1rem', fontFamily: 'monospace' }}>
+                            ID: {selectedPrompt.id}
+                        </div>
+
                         <p style={{ color: '#cbd5e1' }}>{selectedPrompt.description}</p>
 
                         <div className="mb-4">

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useToast } from './Toast';
 
-const API_URL = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000').replace(/\/$/, '');
+import { API_URL } from '../config';
 
 function Login() {
     const [email, setEmail] = useState('');
@@ -92,12 +92,14 @@ function Login() {
         return (
             <div className="login-container" style={{ maxWidth: '400px', margin: '4rem auto', textAlign: 'center' }}>
                 <h2>🚀 Magic Link Sent! (Step 2 of 2)</h2>
-                <p>Your email has been verified. We have sent a private login link to your email.</p>
+                <p>Your email has been verified. We have sent a private login link to your email.
+
+                    <br /> <strong>If you do not see the email in your inbox, please check your Junk or Spam folder.</strong></p>
                 <div style={{ margin: '2rem 0', padding: '1rem', background: '#f8f9fa', borderRadius: '4px', textAlign: 'left', color: '#333' }}>
                     <p style={{ margin: '0.5rem 0' }}><strong>From:</strong> PromptRepoAccess@outlook.com</p>
                     <p style={{ margin: '0.5rem 0' }}><strong>Expires in:</strong> 15 minutes</p>
                 </div>
-                <p style={{ marginTop: '1.5rem', fontSize: '0.8rem', color: '#888', textAlign: 'center' }}>If you do not see the email in your inbox, please check your Junk or Spam folder. To ensure future messages are delivered correctly, move the email to your primary inbox.</p>
+                <p style={{ marginTop: '1.5rem', textAlign: 'center' }}> To ensure future messages are delivered correctly, move the email to your primary inbox.</p>
                 <button className="btn btn-secondary" onClick={handleRetry} style={{ marginTop: '1rem' }}>
                     Try another email
                 </button>

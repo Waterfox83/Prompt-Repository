@@ -1,11 +1,19 @@
 import React, { useState } from 'react';
 import { useToast } from './Toast';
 
+import { API_URL } from '../config';
+
 const PromptForm = ({ onSave, loading, initialData = null, onCancel = null }) => {
     const [title, setTitle] = useState(initialData?.title || '');
     const [description, setDescription] = useState(initialData?.description || '');
     const [generating, setGenerating] = useState(false); // New state for AI generation
-    const [selectedTools, setSelectedTools] = useState(initialData?.tool_used || []);
+    // Ensure tool_used is always an array, even if backend sends string (legacy data)
+    const [selectedTools, setSelectedTools] = useState(() => {
+        const tools = initialData?.tool_used;
+        if (Array.isArray(tools)) return tools;
+        if (typeof tools === 'string' && tools) return [tools];
+        return [];
+    });
     const [toolInput, setToolInput] = useState('');
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [promptText, setPromptText] = useState(initialData?.prompt_text || '');
@@ -56,7 +64,6 @@ const PromptForm = ({ onSave, loading, initialData = null, onCancel = null }) =>
 
         setGenerating(true);
         try {
-            const API_URL = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000').replace(/\/$/, '');
             const response = await fetch(`${API_URL}/generate-details`, {
                 method: 'POST',
                 headers: {

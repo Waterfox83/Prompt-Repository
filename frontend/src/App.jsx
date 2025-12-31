@@ -4,7 +4,7 @@ import PromptList from './components/PromptList';
 import Login from './components/Login';
 import AboutModal from './components/AboutModal';
 
-const API_URL = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000').replace(/\/$/, '');
+import { API_URL } from './config';
 
 import { ToastProvider, useToast } from './components/Toast';
 
@@ -18,6 +18,7 @@ function AppContent() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [activeFilter, setActiveFilter] = useState(null);
   const [showAbout, setShowAbout] = useState(false);
+  const [editingPrompt, setEditingPrompt] = useState(null); // State for editing prompt
   const { addToast } = useToast();
 
   // Check auth on mount
@@ -249,7 +250,7 @@ function AppContent() {
             onEdit={(prompt) => {
               setActiveTab('edit');
               // Pass the prompt data to edit
-              window.editingPrompt = prompt;
+              setEditingPrompt(prompt);
             }}
             user={user}
           />
@@ -258,12 +259,12 @@ function AppContent() {
 
       {activeTab === 'edit' && (
         <PromptForm
-          onSave={(data) => handleSave(data, window.editingPrompt?.id)}
+          onSave={(data) => handleSave(data, editingPrompt?.id)}
           loading={loading}
-          initialData={window.editingPrompt}
+          initialData={editingPrompt}
           onCancel={() => {
             setActiveTab('browse');
-            window.editingPrompt = null;
+            setEditingPrompt(null);
           }}
         />
       )}

@@ -273,6 +273,25 @@ class S3Service:
             print(f"Error listing from S3: {e}")
             return []
 
+    def delete_prompt(self, prompt_id: str) -> bool:
+        """Deletes a prompt from S3 or local memory."""
+        if self.mock_mode:
+            initial_len = len(self._local_storage)
+            self._local_storage = [p for p in self._local_storage if p['id'] != prompt_id]
+            if len(self._local_storage) < initial_len:
+                print(f"S3Service (Mock): Deleted prompt {prompt_id}")
+                return True
+            return False
+
+        key = f"prompts/{prompt_id}.json"
+        try:
+            self.s3.delete_object(Bucket=self.bucket_name, Key=key)
+            print(f"Deleted prompt {prompt_id} from S3")
+            return True
+        except ClientError as e:
+            print(f"Error deleting from S3: {e}")
+            return False
+
 import time
 
 class VectorService:
@@ -292,6 +311,16 @@ class VectorService:
         
         if not self.gemini_api_key:
             print("WARNING: GEMINI_API_KEY missing. Semantic search will fallback to mock.")
+
+    def _construct_searchable_text(self, title: str, description: str, prompt_text: str, tool_used: Any, tags: List[str]) -> str:
+        """Helper to construct the text used for generating embeddings."""
+        # Handle tool_used being list or string
+        if isinstance(tool_used, list):
+            tools_str = " ".join(tool_used)
+        else:
+            tools_str = str(tool_used)
+            
+        return f"{title} {description} {prompt_text} {tools_str} {' '.join(tags)}"
 
     def _get_embedding_rest(self, text: str):
         """Generates embedding using Gemini REST API."""
@@ -345,8 +374,11 @@ class VectorService:
             # 2. Load Vectors (Large, mmap)
             matrix = None
             etag = None
+            temp_path = None
             try:
                 # Create a temp file
+                # Use delete=False because we need to close it before numpy loads it (on Windows especially, but good practice)
+                # We will manually delete it in finally block
                 with tempfile.NamedTemporaryFile(delete=False, suffix='.npy') as tmp:
                     temp_path = tmp.name
                 
@@ -357,12 +389,33 @@ class VectorService:
                     f.write(content)
                 
                 # Load with mmap_mode
-                matrix = np.load(temp_path, mmap_mode='r')
+                # Note: mmap keeps the file open. We can't easily delete it while in use.
+                # However, for this specific usage pattern (load -> search -> discard), 
+                # we might be leaking if we don't close the mmap.
+                # But numpy mmap is tricky to close explicitly.
+                # A better approach for "load all" might be to just load into RAM if it's not HUGE.
+                # Given the "memory leak" finding was about the temp file not being deleted:
+                
+                # If we use mmap_mode='r', the file is locked.
+                # We should probably load it into memory if we want to delete the file immediately,
+                # OR keep track of the file and delete it when the service shuts down (hard in Lambda).
+                # Let's switch to loading into memory for now to ensure we can delete the file.
+                # If dataset gets huge, we'd need a different strategy (e.g. EFS or proper vector DB).
+                
+                matrix = np.load(temp_path) # Load fully into RAM
+                
             except ClientError as e:
                 if e.response['Error']['Code'] == "NoSuchKey":
                     matrix = np.empty((0, 768), dtype=np.float32)
                 else:
                     raise e
+            finally:
+                # Clean up temp file
+                if temp_path and os.path.exists(temp_path):
+                    try:
+                        os.remove(temp_path)
+                    except Exception as e:
+                        print(f"Warning: Failed to remove temp file {temp_path}: {e}")
             
             return ids, matrix, etag
             
@@ -439,7 +492,7 @@ class VectorService:
                 
                 self.s3.put_object(**put_kwargs)
                 print(f"Successfully saved embedding for {prompt_id} (Attempt {attempt+1})")
-                return
+                return True
                 
             except ClientError as e:
                 if e.response['Error']['Code'] == 'PreconditionFailed':
@@ -448,12 +501,13 @@ class VectorService:
                     continue
                 else:
                     print(f"Error saving embedding to S3: {e}")
-                    return
+                    raise e # Propagate error
             except Exception as e:
                 print(f"Unexpected error saving embedding: {e}")
-                return
+                raise e # Propagate error
         
         print(f"Failed to save embedding after {max_retries} attempts due to concurrency.")
+        raise Exception(f"Failed to save embedding after {max_retries} attempts due to concurrency.")
 
     def add_point(self, text: str, metadata: dict):
         """Generates and saves embedding to S3."""
@@ -470,8 +524,70 @@ class VectorService:
         # 2. Save embedding to S3 (Optimized)
         prompt_id = metadata.get("id")
         self._save_embedding_to_s3(prompt_id, vector)
+        self._save_embedding_to_s3(prompt_id, vector)
         print(f"Successfully saved embedding for: {metadata.get('title')}")
         return True
+
+    def delete_point(self, prompt_id: str) -> bool:
+        """Deletes an embedding from S3."""
+        if self.mock_mode:
+            print(f"VectorService (Mock): Deleted point for {prompt_id}")
+            return True
+
+        # 1. Load all embeddings
+        ids, matrix, etag = self._load_all_embeddings()
+        
+        if prompt_id not in ids:
+            print(f"Prompt {prompt_id} not found in embeddings.")
+            return False
+            
+        # 2. Find index and remove
+        try:
+            idx = ids.index(prompt_id)
+            
+            # Remove from IDs
+            ids.pop(idx)
+            
+            # Remove from Matrix
+            if hasattr(matrix, 'files'):
+                matrix = np.array(matrix)
+            
+            # Delete row at idx
+            matrix = np.delete(matrix, idx, axis=0)
+            
+            # 3. Save back to S3
+            import io
+            
+            # Save IDs
+            self.s3.put_object(
+                Bucket=self.bucket_name,
+                Key="embeddings/ids.json",
+                Body=json.dumps(ids),
+                ContentType='application/json'
+            )
+            
+            # Save Matrix
+            buffer = io.BytesIO()
+            np.save(buffer, matrix)
+            buffer.seek(0)
+            
+            put_kwargs = {
+                'Bucket': self.bucket_name,
+                'Key': "embeddings/vectors.npy",
+                'Body': buffer.getvalue(),
+                'ContentType': 'application/octet-stream'
+            }
+            
+            if etag:
+                put_kwargs['IfMatch'] = etag
+                
+            self.s3.put_object(**put_kwargs)
+            print(f"Successfully deleted embedding for {prompt_id}")
+            return True
+            
+        except Exception as e:
+            print(f"Error deleting embedding: {e}")
+            return False
 
     def search(self, query_text: str, limit: int = 5):
         """Searches using S3-stored embeddings (Optimized Matrix Search)."""

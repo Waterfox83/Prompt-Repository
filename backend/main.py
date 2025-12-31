@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from mangum import Mangum
 from pydantic import BaseModel
@@ -151,8 +151,14 @@ def create_prompt(prompt: Prompt, user_email: str = Depends(get_current_user_dep
         
         # 2. Save vector embedding (mock)
         # We construct a text representation for semantic search
-        tools_str = " ".join(prompt.tool_used)
-        searchable_text = f"{prompt.title} {prompt.description} {prompt.prompt_text} {tools_str} {' '.join(prompt.tags)}"
+        searchable_text = vector_service._construct_searchable_text(
+            prompt.title, 
+            prompt.description, 
+            prompt.prompt_text, 
+            prompt.tool_used, 
+            prompt.tags
+        )
+        
         vector_service.add_point(
             text=searchable_text,
             metadata={
@@ -161,7 +167,7 @@ def create_prompt(prompt: Prompt, user_email: str = Depends(get_current_user_dep
                 "description": prompt.description,
                 "tags": prompt.tags,
                 "username": prompt.username,
-                "tool_used": prompt.tool_used,
+                "tool_used": prompt.tool_used, # Already validated as List[str] by Pydantic
                 "prompt_text": prompt.prompt_text
             }
         )
@@ -208,8 +214,14 @@ def update_prompt(prompt_id: str, prompt: Prompt, user_email: str = Depends(get_
         s3_service.update_prompt(prompt_id, prompt_dict)
         
         # Update vector database
-        tools_str = " ".join(prompt.tool_used)
-        searchable_text = f"{prompt.title} {prompt.description} {prompt.prompt_text} {tools_str} {' '.join(prompt.tags)}"
+        searchable_text = vector_service._construct_searchable_text(
+            prompt.title, 
+            prompt.description, 
+            prompt.prompt_text, 
+            prompt.tool_used, 
+            prompt.tags
+        )
+        
         vector_service.add_point(
             text=searchable_text,
             metadata={
@@ -272,8 +284,18 @@ def migrate_embeddings():
             
             try:
                 # Generate searchable text
-                tools_str = " ".join(prompt.get("tool_used", []) if isinstance(prompt.get("tool_used"), list) else [prompt.get("tool_used", "")])
-                searchable_text = f"{prompt.get('title', '')} {prompt.get('description', '')} {prompt.get('prompt_text', '')} {tools_str} {' '.join(prompt.get('tags', []))}"
+                # Ensure tool_used is a list for the helper
+                tool_used_val = prompt.get("tool_used", [])
+                if not isinstance(tool_used_val, list):
+                    tool_used_val = [str(tool_used_val)] if tool_used_val else []
+                    
+                searchable_text = vector_service._construct_searchable_text(
+                    prompt.get('title', ''), 
+                    prompt.get('description', ''), 
+                    prompt.get('prompt_text', ''), 
+                    tool_used_val, 
+                    prompt.get('tags', [])
+                )
                 
                 # Generate embedding
                 vector = vector_service._get_embedding_rest(searchable_text)
@@ -377,3 +399,102 @@ def migrate_owners():
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Owner migration failed: {str(e)}")
+
+@app.post("/migrate-tools")
+def migrate_tools():
+    """
+    One-time migration to convert 'tool_used' from string to list[str].
+    """
+    try:
+        all_prompts = s3_service.list_prompts()
+        updated_count = 0
+        updated_prompts = []
+        
+        for prompt in all_prompts:
+            tool_used = prompt.get("tool_used")
+            
+            # Check if it's a string (legacy format) or None
+            if tool_used is None or isinstance(tool_used, str):
+                # Convert to list
+                if isinstance(tool_used, str):
+                    new_tool_used = [tool_used] if tool_used.strip() else []
+                else:
+                    new_tool_used = []
+                
+                # Only update if it actually changed (avoid unnecessary writes)
+                # Note: We compare against the original value. 
+                # If original was None, new is []. They are different.
+                # If original was "foo", new is ["foo"]. They are different.
+                
+                prompt["tool_used"] = new_tool_used
+                
+                # Update in S3
+                s3_service.update_prompt(prompt["id"], prompt)
+                
+                # We should also update the embedding because the metadata has changed
+                searchable_text = vector_service._construct_searchable_text(
+                    prompt.get('title', ''), 
+                    prompt.get('description', ''), 
+                    prompt.get('prompt_text', ''), 
+                    new_tool_used, 
+                    prompt.get('tags', [])
+                )
+                
+                vector_service.add_point(
+                    text=searchable_text,
+                    metadata={
+                        "id": prompt["id"],
+                        "title": prompt.get("title"),
+                        "description": prompt.get("description"),
+                        "tags": prompt.get("tags"),
+                        "username": prompt.get("username"),
+                        "tool_used": new_tool_used,
+                        "prompt_text": prompt.get("prompt_text")
+                    }
+                )
+                
+                updated_count += 1
+                updated_prompts.append({"id": prompt["id"], "title": prompt.get("title"), "old_tool": tool_used, "new_tool": new_tool_used})
+                
+        return {
+            "status": "success",
+            "message": f"Scanned {len(all_prompts)} prompts. Updated {updated_count} prompts with list-type tool_used.",
+            "total_scanned": len(all_prompts),
+            "updated_count": updated_count,
+            "details": updated_prompts
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Tool migration failed: {str(e)}")
+
+@app.delete("/admin/prompts/{prompt_id}")
+def delete_prompt_admin(prompt_id: str, x_admin_secret: str = Header(None)):
+    """
+    Admin endpoint to delete a prompt and its embedding.
+    Protected by X-Admin-Secret header.
+    """
+    admin_secret = os.environ.get("ADMIN_SECRET_KEY", "admin-secret-dev")
+    if x_admin_secret != admin_secret:
+        raise HTTPException(status_code=403, detail="Invalid admin secret")
+
+    try:
+        # 1. Delete from S3 (JSON)
+        s3_deleted = s3_service.delete_prompt(prompt_id)
+        if not s3_deleted:
+            raise HTTPException(status_code=404, detail="Prompt not found")
+
+        # 2. Delete from Vector Store (Embedding)
+        # We don't fail hard if vector delete fails, but we log it
+        vector_deleted = vector_service.delete_point(prompt_id)
+        
+        return {
+            "status": "success",
+            "message": f"Prompt {prompt_id} deleted.",
+            "details": {
+                "s3_deleted": s3_deleted,
+                "vector_deleted": vector_deleted
+            }
+        }
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Delete failed: {str(e)}")
