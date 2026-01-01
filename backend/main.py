@@ -6,8 +6,10 @@ from typing import List, Optional
 from fastapi import Request, Response, Depends, Cookie
 from fastapi.responses import RedirectResponse
 from .services import S3Service, VectorService, SESService
+from .tool_metadata_service import ToolMetadataService
 from .auth_utils import create_magic_link_token, create_session_token, verify_token
 import os
+import json
 
 app = FastAPI()
 
@@ -36,6 +38,7 @@ handler = Mangum(app)
 s3_service = S3Service()
 vector_service = VectorService(s3_service)
 ses_service = SESService()
+tool_metadata_service = ToolMetadataService(s3_service)
 
 # Auth Models
 class LoginRequest(BaseModel):
@@ -113,6 +116,13 @@ def get_current_user(session_token: Optional[str] = Cookie(None)):
         
     return {"email": email}
 
+# Dependency for optional authentication
+def get_current_user_optional(session_token: Optional[str] = Cookie(None)):
+    if not session_token:
+        return None
+    email = verify_token(session_token, "session")
+    return email
+
 # Dependency for protected routes
 def get_current_user_dep(session_token: Optional[str] = Cookie(None)):
     if not session_token:
@@ -130,6 +140,7 @@ class Prompt(BaseModel):
     tags: List[str]
     username: Optional[str] = None
     owner_email: Optional[str] = None
+    upvotes: Optional[int] = 0
 
 class GenerateRequest(BaseModel):
     title: str
@@ -177,8 +188,55 @@ def create_prompt(prompt: Prompt, user_email: str = Depends(get_current_user_dep
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/prompts")
-def list_prompts():
-    return {"results": s3_service.list_prompts()}
+def list_prompts(user_email: Optional[str] = Depends(get_current_user_optional)):
+    """List all prompts with user context for upvotes and favorites"""
+    try:
+        prompts = s3_service.list_prompts()
+        
+        # Add user context if authenticated
+        if user_email:
+            # Get user favorites
+            if s3_service.mock_mode:
+                user_favorites = s3_service.get_user_favorites(user_email)
+            else:
+                user_favorites = []
+                try:
+                    user_data = s3_service.s3.get_object(
+                        Bucket=s3_service.bucket_name,
+                        Key=f"users/{user_email}/favorites.json"
+                    )
+                    user_favorites = json.loads(user_data['Body'].read().decode('utf-8'))
+                except:
+                    user_favorites = []
+            
+            # Add user context to each prompt
+            for prompt in prompts:
+                # Initialize upvote fields if missing
+                if 'upvotes' not in prompt:
+                    prompt['upvotes'] = 0
+                if 'upvoted_by' not in prompt:
+                    prompt['upvoted_by'] = []
+                
+                # Add user context
+                prompt['user_context'] = {
+                    'is_upvoted': user_email in prompt.get('upvoted_by', []),
+                    'is_favorited': prompt['id'] in user_favorites,
+                    'can_edit': prompt.get('owner_email') == user_email
+                }
+        else:
+            # Add basic context for unauthenticated users
+            for prompt in prompts:
+                if 'upvotes' not in prompt:
+                    prompt['upvotes'] = 0
+                prompt['user_context'] = {
+                    'is_upvoted': False,
+                    'is_favorited': False,
+                    'can_edit': False
+                }
+        
+        return {"results": prompts}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.put("/prompts/{prompt_id}")
 def update_prompt(prompt_id: str, prompt: Prompt, user_email: str = Depends(get_current_user_dep)):
@@ -240,9 +298,55 @@ def update_prompt(prompt_id: str, prompt: Prompt, user_email: str = Depends(get_
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/search")
-def search_prompts(q: str):
-    results = vector_service.search(q)
-    return {"results": results}
+def search_prompts(q: str, user_email: Optional[str] = Depends(get_current_user_optional)):
+    """Search prompts with user context"""
+    try:
+        results = vector_service.search(q)
+        
+        # Add user context if authenticated
+        if user_email:
+            # Get user favorites
+            if s3_service.mock_mode:
+                user_favorites = s3_service.get_user_favorites(user_email)
+            else:
+                user_favorites = []
+                try:
+                    user_data = s3_service.s3.get_object(
+                        Bucket=s3_service.bucket_name,
+                        Key=f"users/{user_email}/favorites.json"
+                    )
+                    user_favorites = json.loads(user_data['Body'].read().decode('utf-8'))
+                except:
+                    user_favorites = []
+            
+            # Add user context to each result
+            for result in results:
+                # Initialize upvote fields if missing
+                if 'upvotes' not in result:
+                    result['upvotes'] = 0
+                if 'upvoted_by' not in result:
+                    result['upvoted_by'] = []
+                
+                # Add user context
+                result['user_context'] = {
+                    'is_upvoted': user_email in result.get('upvoted_by', []),
+                    'is_favorited': result['id'] in user_favorites,
+                    'can_edit': result.get('owner_email') == user_email
+                }
+        else:
+            # Add basic context for unauthenticated users
+            for result in results:
+                if 'upvotes' not in result:
+                    result['upvotes'] = 0
+                result['user_context'] = {
+                    'is_upvoted': False,
+                    'is_favorited': False,
+                    'can_edit': False
+                }
+        
+        return {"results": results}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/generate-details")
 def generate_details(request: GenerateRequest):
@@ -498,3 +602,337 @@ def delete_prompt_admin(prompt_id: str, x_admin_secret: str = Header(None)):
         raise he
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Delete failed: {str(e)}")
+
+# Tool Metadata API Endpoints
+
+@app.get("/tools")
+def get_all_tools():
+    """Get all available AI tools with metadata"""
+    try:
+        tools = tool_metadata_service.get_all_tools()
+        categories = tool_metadata_service.get_categories()
+        
+        return {
+            "tools": tools,
+            "categories": categories
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/tools/{tool_id}")
+def get_tool_by_id(tool_id: str):
+    """Get detailed information about a specific tool"""
+    try:
+        tool = tool_metadata_service.get_tool_by_id(tool_id)
+        if not tool:
+            # Try by display name as fallback
+            tool = tool_metadata_service.get_tool_by_display_name(tool_id)
+        
+        if not tool:
+            raise HTTPException(status_code=404, detail="Tool not found")
+        
+        # Get statistics for this tool
+        stats = tool_metadata_service.get_tool_statistics(tool_id)
+        
+        return {
+            "tool": tool,
+            "statistics": stats
+        }
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/tools/{tool_id}/prompts")
+def get_tool_prompts(tool_id: str, limit: Optional[int] = None):
+    """Get all prompts that use a specific tool"""
+    try:
+        prompts = tool_metadata_service.get_prompts_by_tool(tool_id, limit)
+        
+        # Get tool metadata for context
+        tool = tool_metadata_service.get_tool_by_id(tool_id)
+        if not tool:
+            tool = tool_metadata_service.get_tool_by_display_name(tool_id)
+        
+        if not tool:
+            raise HTTPException(status_code=404, detail="Tool not found")
+        
+        return {
+            "tool": {
+                "id": tool["id"],
+                "displayName": tool["displayName"],
+                "description": tool["description"],
+                "category": tool["category"],
+                "icon": tool["icon"]
+            },
+            "prompts": prompts,
+            "total_count": len(prompts)
+        }
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/tools/{tool_id}/stats")
+def get_tool_statistics(tool_id: str):
+    """Get usage statistics for a specific tool"""
+    try:
+        stats = tool_metadata_service.get_tool_statistics(tool_id)
+        
+        if "error" in stats:
+            raise HTTPException(status_code=404, detail=stats["error"])
+        
+        return stats
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/categories")
+def get_categories():
+    """Get all tool categories with metadata and tool counts"""
+    try:
+        categories = tool_metadata_service.get_categories()
+        return {"categories": categories}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/categories/{category_id}/tools")
+def get_tools_by_category(category_id: str):
+    """Get all tools in a specific category"""
+    try:
+        tools = tool_metadata_service.get_tools_by_category(category_id)
+        category_info = tool_metadata_service.get_categories().get(category_id)
+        
+        if not category_info:
+            raise HTTPException(status_code=404, detail="Category not found")
+        
+        return {
+            "category": category_info,
+            "tools": tools
+        }
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# User Interaction Endpoints (Upvotes and Favorites)
+
+@app.post("/prompts/{prompt_id}/upvote")
+def upvote_prompt(prompt_id: str, user_email: str = Depends(get_current_user_dep)):
+    """Upvote a prompt"""
+    try:
+        # Get all prompts to find the one to upvote
+        all_prompts = s3_service.list_prompts()
+        prompt = next((p for p in all_prompts if p['id'] == prompt_id), None)
+        
+        if not prompt:
+            raise HTTPException(status_code=404, detail="Prompt not found")
+        
+        # Initialize upvotes if not present
+        if 'upvotes' not in prompt:
+            prompt['upvotes'] = 0
+        
+        # Initialize upvoted_by list if not present
+        if 'upvoted_by' not in prompt:
+            prompt['upvoted_by'] = []
+        
+        # Check if user already upvoted
+        if user_email in prompt['upvoted_by']:
+            raise HTTPException(status_code=400, detail="Already upvoted")
+        
+        # Add upvote
+        prompt['upvotes'] += 1
+        prompt['upvoted_by'].append(user_email)
+        
+        # Update in S3
+        s3_service.update_prompt(prompt_id, prompt)
+        
+        return {
+            "status": "success",
+            "upvotes": prompt['upvotes'],
+            "message": "Prompt upvoted successfully"
+        }
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/prompts/{prompt_id}/upvote")
+def remove_upvote(prompt_id: str, user_email: str = Depends(get_current_user_dep)):
+    """Remove upvote from a prompt"""
+    try:
+        # Get all prompts to find the one to remove upvote from
+        all_prompts = s3_service.list_prompts()
+        prompt = next((p for p in all_prompts if p['id'] == prompt_id), None)
+        
+        if not prompt:
+            raise HTTPException(status_code=404, detail="Prompt not found")
+        
+        # Initialize fields if not present
+        if 'upvotes' not in prompt:
+            prompt['upvotes'] = 0
+        if 'upvoted_by' not in prompt:
+            prompt['upvoted_by'] = []
+        
+        # Check if user has upvoted
+        if user_email not in prompt['upvoted_by']:
+            raise HTTPException(status_code=400, detail="Not upvoted")
+        
+        # Remove upvote
+        prompt['upvotes'] = max(0, prompt['upvotes'] - 1)
+        prompt['upvoted_by'].remove(user_email)
+        
+        # Update in S3
+        s3_service.update_prompt(prompt_id, prompt)
+        
+        return {
+            "status": "success",
+            "upvotes": prompt['upvotes'],
+            "message": "Upvote removed successfully"
+        }
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/users/me/favorites")
+def get_user_favorites(user_email: str = Depends(get_current_user_dep)):
+    """Get user's favorite prompts"""
+    try:
+        if s3_service.mock_mode:
+            # Get favorites from in-memory storage
+            favorite_ids = s3_service.get_user_favorites(user_email)
+            all_prompts = s3_service.list_prompts()
+            favorite_prompts = [p for p in all_prompts if p['id'] in favorite_ids]
+            return {
+                "favorites": favorite_prompts,
+                "count": len(favorite_prompts)
+            }
+        
+        # Real S3 implementation
+        try:
+            user_data = s3_service.s3.get_object(
+                Bucket=s3_service.bucket_name,
+                Key=f"users/{user_email}/favorites.json"
+            )
+            favorites = json.loads(user_data['Body'].read().decode('utf-8'))
+        except:
+            favorites = []
+        
+        # Get full prompt data for favorites
+        all_prompts = s3_service.list_prompts()
+        favorite_prompts = [p for p in all_prompts if p['id'] in favorites]
+        
+        return {
+            "favorites": favorite_prompts,
+            "count": len(favorite_prompts)
+        }
+    except Exception as e:
+        if s3_service.mock_mode:
+            return {"favorites": [], "count": 0}
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/users/me/favorites/{prompt_id}")
+def add_to_favorites(prompt_id: str, user_email: str = Depends(get_current_user_dep)):
+    """Add a prompt to user's favorites"""
+    try:
+        # Verify prompt exists
+        all_prompts = s3_service.list_prompts()
+        prompt = next((p for p in all_prompts if p['id'] == prompt_id), None)
+        
+        if not prompt:
+            raise HTTPException(status_code=404, detail="Prompt not found")
+        
+        if s3_service.mock_mode:
+            # Use in-memory storage for mock mode
+            success = s3_service.add_user_favorite(user_email, prompt_id)
+            if success:
+                favorite_ids = s3_service.get_user_favorites(user_email)
+                return {
+                    "status": "success",
+                    "message": "Added to favorites",
+                    "favorites_count": len(favorite_ids)
+                }
+            else:
+                return {
+                    "status": "success",
+                    "message": "Already in favorites",
+                    "favorites_count": len(s3_service.get_user_favorites(user_email))
+                }
+        
+        # Real S3 implementation
+        try:
+            user_data = s3_service.s3.get_object(
+                Bucket=s3_service.bucket_name,
+                Key=f"users/{user_email}/favorites.json"
+            )
+            favorites = json.loads(user_data['Body'].read().decode('utf-8'))
+        except:
+            favorites = []
+        
+        # Add to favorites if not already there
+        if prompt_id not in favorites:
+            favorites.append(prompt_id)
+            
+            # Save back to S3
+            s3_service.s3.put_object(
+                Bucket=s3_service.bucket_name,
+                Key=f"users/{user_email}/favorites.json",
+                Body=json.dumps(favorites),
+                ContentType='application/json'
+            )
+        
+        return {
+            "status": "success",
+            "message": "Added to favorites",
+            "favorites_count": len(favorites)
+        }
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/users/me/favorites/{prompt_id}")
+def remove_from_favorites(prompt_id: str, user_email: str = Depends(get_current_user_dep)):
+    """Remove a prompt from user's favorites"""
+    try:
+        if s3_service.mock_mode:
+            # Use in-memory storage for mock mode
+            success = s3_service.remove_user_favorite(user_email, prompt_id)
+            favorite_ids = s3_service.get_user_favorites(user_email)
+            return {
+                "status": "success",
+                "message": "Removed from favorites" if success else "Not in favorites",
+                "favorites_count": len(favorite_ids)
+            }
+        
+        # Real S3 implementation
+        try:
+            user_data = s3_service.s3.get_object(
+                Bucket=s3_service.bucket_name,
+                Key=f"users/{user_email}/favorites.json"
+            )
+            favorites = json.loads(user_data['Body'].read().decode('utf-8'))
+        except:
+            favorites = []
+        
+        # Remove from favorites if present
+        if prompt_id in favorites:
+            favorites.remove(prompt_id)
+            
+            # Save back to S3
+            s3_service.s3.put_object(
+                Bucket=s3_service.bucket_name,
+                Key=f"users/{user_email}/favorites.json",
+                Body=json.dumps(favorites),
+                ContentType='application/json'
+            )
+        
+        return {
+            "status": "success",
+            "message": "Removed from favorites",
+            "favorites_count": len(favorites)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

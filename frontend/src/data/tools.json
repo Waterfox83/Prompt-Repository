@@ -1,0 +1,308 @@
+{
+  "tools": [
+    {
+      "id": "chatgpt",
+      "displayName": "ChatGPT",
+      "description": "OpenAI's conversational AI for general-purpose text generation and problem-solving",
+      "detailedDescription": "ChatGPT is a versatile AI assistant that excels at writing, coding, analysis, and creative tasks. It can help with code reviews, documentation, debugging, and explaining complex concepts.",
+      "category": "coding",
+      "accessUrl": "https://chat.openai.com",
+      "useCases": [
+        "Code review and debugging",
+        "Writing documentation",
+        "Explaining complex algorithms",
+        "Generating test cases",
+        "Refactoring code"
+      ],
+      "gettingStartedUrl": null,
+      "popularPrompts": []
+    },
+    {
+      "id": "claude",
+      "displayName": "Claude",
+      "description": "Anthropic's AI assistant focused on helpful, harmless, and honest interactions",
+      "detailedDescription": "Claude excels at analytical thinking, code analysis, and detailed explanations. It's particularly strong at understanding context and providing thorough, well-reasoned responses.",
+      "category": "coding",
+      "accessUrl": "https://claude.ai",
+      "useCases": [
+        "Code analysis and optimization",
+        "Technical writing",
+        "System design discussions",
+        "Code architecture reviews",
+        "Complex problem solving"
+      ],
+      "gettingStartedUrl": null,
+      "popularPrompts": []
+    },
+    {
+      "id": "gemini",
+      "displayName": "Gemini",
+      "description": "Google's multimodal AI model for text, code, and image understanding",
+      "detailedDescription": "Gemini combines text and visual understanding, making it excellent for projects involving both code and visual elements. It integrates well with Google's ecosystem.",
+      "category": "coding",
+      "icon": "💎",
+      "accessUrl": "https://gemini.google.com",
+      "useCases": [
+        "Multimodal code analysis",
+        "Image-to-code generation",
+        "Google Cloud integration",
+        "Data analysis with charts",
+        "API documentation with visuals"
+      ],
+      "gettingStartedUrl": null,
+      "popularPrompts": []
+    },
+    {
+      "id": "copilot",
+      "displayName": "GitHub Copilot",
+      "description": "AI pair programmer that suggests code completions and entire functions",
+      "detailedDescription": "GitHub Copilot is integrated directly into your IDE, providing real-time code suggestions, function completions, and helping with boilerplate code generation.",
+      "category": "coding",
+      "icon": "🚁",
+      "accessUrl": "https://github.com/features/copilot",
+      "useCases": [
+        "Real-time code completion",
+        "Function generation",
+        "Boilerplate code creation",
+        "Unit test generation",
+        "Code pattern suggestions"
+      ],
+      "gettingStartedUrl": null,
+      "popularPrompts": []
+    },
+    {
+      "id": "cursor",
+      "displayName": "Cursor",
+      "description": "AI-powered code editor with built-in AI assistance",
+      "detailedDescription": "Cursor is a code editor that integrates AI directly into the development workflow, offering contextual code suggestions and AI-powered editing capabilities.",
+      "category": "coding",
+      "accessUrl": "https://cursor.sh",
+      "useCases": [
+        "AI-assisted code editing",
+        "Contextual code suggestions",
+        "Codebase understanding",
+        "Refactoring assistance",
+        "Code explanation"
+      ],
+      "gettingStartedUrl": null,
+      "popularPrompts": []
+    },
+    {
+      "id": "grammarly",
+      "displayName": "Grammarly",
+      "description": "AI writing assistant for grammar, style, and clarity improvements",
+      "detailedDescription": "Grammarly helps improve writing quality by checking grammar, suggesting style improvements, and ensuring clarity in communication.",
+      "category": "writing",
+      "icon": "✍️",
+      "accessUrl": "https://grammarly.com",
+      "useCases": [
+        "Grammar and spell checking",
+        "Style improvement suggestions",
+        "Tone adjustment",
+        "Clarity enhancement",
+        "Professional writing"
+      ],
+      "gettingStartedUrl": null,
+      "popularPrompts": []
+    },
+    {
+      "id": "jasper",
+      "displayName": "Jasper",
+      "description": "AI content creation platform for marketing and business writing",
+      "detailedDescription": "Jasper specializes in marketing content, blog posts, social media content, and business communications with brand voice consistency.",
+      "category": "writing",
+      "icon": "📄",
+      "accessUrl": "https://jasper.ai",
+      "useCases": [
+        "Marketing copy creation",
+        "Blog post writing",
+        "Social media content",
+        "Email campaigns",
+        "Brand voice consistency"
+      ],
+      "gettingStartedUrl": null,
+      "popularPrompts": []
+    },
+    {
+      "id": "notion-ai",
+      "displayName": "Notion AI",
+      "description": "Integrated AI assistant within Notion for content creation and organization",
+      "detailedDescription": "Notion AI helps with writing, brainstorming, and organizing content directly within your Notion workspace, making it perfect for documentation and project management.",
+      "category": "writing",
+      "icon": "📋",
+      "accessUrl": "https://notion.so",
+      "useCases": [
+        "Documentation writing",
+        "Meeting notes summarization",
+        "Project planning",
+        "Content brainstorming",
+        "Task organization"
+      ],
+      "gettingStartedUrl": null,
+      "popularPrompts": []
+    },
+    {
+      "id": "midjourney",
+      "displayName": "Midjourney",
+      "description": "AI image generation tool for creating artistic and professional visuals",
+      "detailedDescription": "Midjourney excels at creating high-quality, artistic images from text descriptions. It's particularly strong at stylized artwork and creative visuals.",
+      "category": "design",
+      "accessUrl": "https://midjourney.com",
+      "useCases": [
+        "Concept art creation",
+        "Marketing visuals",
+        "Artistic illustrations",
+        "Product mockups",
+        "Creative brainstorming"
+      ],
+      "gettingStartedUrl": null,
+      "popularPrompts": []
+    },
+    {
+      "id": "dall-e",
+      "displayName": "DALL-E",
+      "description": "OpenAI's image generation model for creating images from text descriptions",
+      "detailedDescription": "DALL-E creates realistic and artistic images from natural language descriptions, with strong capabilities in photorealistic and creative imagery.",
+      "category": "design",
+      "icon": "🖼️",
+      "accessUrl": "https://openai.com/dall-e-2",
+      "useCases": [
+        "Photorealistic image generation",
+        "Product visualization",
+        "Creative artwork",
+        "Concept illustrations",
+        "Marketing imagery"
+      ],
+      "gettingStartedUrl": null,
+      "popularPrompts": []
+    },
+    {
+      "id": "figma-ai",
+      "displayName": "Figma AI",
+      "description": "AI-powered design assistance within Figma for UI/UX design",
+      "detailedDescription": "Figma AI helps with design workflows, generating design variations, and automating repetitive design tasks within the Figma interface.",
+      "category": "design",
+      "icon": "🎯",
+      "accessUrl": "https://figma.com",
+      "useCases": [
+        "UI component generation",
+        "Design system creation",
+        "Layout suggestions",
+        "Color palette generation",
+        "Design automation"
+      ],
+      "gettingStartedUrl": null,
+      "popularPrompts": []
+    },
+    {
+      "id": "canva-ai",
+      "displayName": "Canva AI",
+      "description": "AI design tools within Canva for quick graphic creation",
+      "detailedDescription": "Canva AI provides automated design suggestions, background removal, and content generation within Canva's user-friendly design platform.",
+      "category": "design",
+      "icon": "🌈",
+      "accessUrl": "https://canva.com",
+      "useCases": [
+        "Social media graphics",
+        "Presentation design",
+        "Marketing materials",
+        "Logo creation",
+        "Brand asset generation"
+      ],
+      "gettingStartedUrl": null,
+      "popularPrompts": []
+    },
+    {
+      "id": "zapier",
+      "displayName": "Zapier AI",
+      "description": "AI-powered workflow automation connecting different apps and services",
+      "detailedDescription": "Zapier AI helps create automated workflows between different applications, reducing manual tasks and improving productivity through intelligent automation.",
+      "category": "automation",
+      "icon": "⚡",
+      "accessUrl": "https://zapier.com",
+      "useCases": [
+        "Workflow automation",
+        "App integration",
+        "Data synchronization",
+        "Task automation",
+        "Process optimization"
+      ],
+      "gettingStartedUrl": null,
+      "popularPrompts": []
+    },
+    {
+      "id": "make",
+      "displayName": "Make (Integromat)",
+      "description": "Visual automation platform for connecting apps and automating workflows",
+      "detailedDescription": "Make provides a visual interface for creating complex automation scenarios, with AI assistance for workflow optimization and error handling.",
+      "category": "automation",
+      "icon": "🔧",
+      "accessUrl": "https://make.com",
+      "useCases": [
+        "Complex workflow automation",
+        "Data processing pipelines",
+        "API integrations",
+        "Business process automation",
+        "Multi-step workflows"
+      ],
+      "gettingStartedUrl": null,
+      "popularPrompts": []
+    },
+    {
+      "id": "github-actions",
+      "displayName": "GitHub Actions",
+      "description": "CI/CD automation platform with AI-assisted workflow creation",
+      "detailedDescription": "GitHub Actions automates software development workflows with AI assistance for creating, optimizing, and troubleshooting CI/CD pipelines.",
+      "category": "automation",
+      "icon": "🔄",
+      "accessUrl": "https://github.com/features/actions",
+      "useCases": [
+        "CI/CD pipeline automation",
+        "Code deployment",
+        "Testing automation",
+        "Release management",
+        "Code quality checks"
+      ],
+      "gettingStartedUrl": null,
+      "popularPrompts": []
+    },
+    {
+      "id": "n8n",
+      "displayName": "n8n",
+      "description": "Open-source workflow automation tool with AI integration capabilities",
+      "detailedDescription": "n8n is a self-hosted automation platform that can integrate AI services and create complex workflows with visual node-based editing.",
+      "category": "automation",
+      "icon": "🌐",
+      "accessUrl": "https://n8n.io",
+      "useCases": [
+        "Self-hosted automation",
+        "AI service integration",
+        "Custom workflow creation",
+        "Data processing",
+        "API orchestration"
+      ],
+      "gettingStartedUrl": null,
+      "popularPrompts": []
+    }
+  ],
+  "categories": {
+    "coding": {
+      "name": "Coding & Development",
+      "description": "AI tools for software development, code review, and programming assistance"
+    },
+    "writing": {
+      "name": "Writing & Content",
+      "description": "AI assistants for writing, editing, and content creation",
+      "icon": "✍️"
+    },
+    "design": {
+      "name": "Design & Creative",
+      "description": "AI tools for visual design, image generation, and creative work"
+    },
+    "automation": {
+      "name": "Automation & Workflows",
+      "description": "AI-powered tools for automating tasks and creating workflows",
+      "icon": "⚡"
+    }
+  }
+}

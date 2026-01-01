@@ -1,10 +1,25 @@
 import React, { useState } from 'react';
 import { useToast } from './Toast';
+import { HeroMissionStatement, SearchSuggestionChips } from './onboarding';
+import { ToolCard, ToolHeader } from './tools';
+import StarButton from './StarButton';
 
-const PromptList = ({ onSearch, results, loading, onFilter, activeFilter, onClearFilter, onEdit, user }) => {
+const PromptList = ({ onSearch, results, loading, onFilter, activeFilter, onEdit, user, onFavoriteToggle }) => {
     const [query, setQuery] = useState('');
     const [selectedPrompt, setSelectedPrompt] = useState(null);
+    const [selectedTool, setSelectedTool] = useState(null);
+    const [hasSearched, setHasSearched] = useState(false);
     const { addToast } = useToast();
+
+    // Check if this appears to be a first-time user (simple heuristic)
+    const isFirstTime = !localStorage.getItem('hasVisited');
+
+    // Mark as visited
+    React.useEffect(() => {
+        if (!localStorage.getItem('hasVisited')) {
+            localStorage.setItem('hasVisited', 'true');
+        }
+    }, []);
 
     // Check if prompt was created by current user
     const canEdit = (prompt) => {
@@ -21,16 +36,56 @@ const PromptList = ({ onSearch, results, loading, onFilter, activeFilter, onClea
     const handleSearch = (e) => {
         e.preventDefault();
         console.log("Search button clicked, query:", query); // Debug log
+        setHasSearched(true);
         onSearch(query);
     };
+
+    const handleSuggestionClick = (suggestionQuery) => {
+        setQuery(suggestionQuery);
+        setHasSearched(true);
+        onSearch(suggestionQuery);
+    };
+
+    // Reset hasSearched when query is cleared and no filter is active
+    React.useEffect(() => {
+        if (!query.trim() && !activeFilter) {
+            setHasSearched(false);
+        }
+    }, [query, activeFilter]);
 
     const copyToClipboard = (text) => {
         navigator.clipboard.writeText(text);
         addToast('Prompt copied to clipboard!', 'success');
     };
 
+    const handleToolClick = (toolName, e) => {
+        e.stopPropagation(); // Prevent any parent click handlers
+        setSelectedPrompt(null); // Close prompt modal if open
+        setSelectedTool(toolName);
+    };
+
+    const handleViewAllPrompts = (toolName) => {
+        if (onFilter) {
+            onFilter('tool', toolName);
+        }
+    };
+
+    const getPromptCountForTool = (toolName) => {
+        return results.filter(prompt => {
+            if (Array.isArray(prompt.tool_used)) {
+                return prompt.tool_used.includes(toolName);
+            }
+            return prompt.tool_used === toolName;
+        }).length;
+    };
+
     return (
         <div>
+            {/* Show mission statement when no search/filter is active */}
+            {!hasSearched && !activeFilter && !query.trim() && (
+                <HeroMissionStatement isFirstTime={isFirstTime} />
+            )}
+
             <div className="card mb-4">
                 <h2 style={{ marginTop: 0 }}>Search Repository</h2>
                 <form onSubmit={handleSearch} className="flex gap-2">
@@ -68,41 +123,24 @@ const PromptList = ({ onSearch, results, loading, onFilter, activeFilter, onClea
                         }
                     `}</style>
                 </form>
+
+                {/* Show search suggestions below the search box when no search/filter is active */}
+                {!hasSearched && !activeFilter && !query.trim() && (
+                    <div style={{ marginTop: '1rem' }}>
+                        <SearchSuggestionChips
+                            onSuggestionClick={handleSuggestionClick}
+                            isFirstTime={isFirstTime}
+                        />
+                    </div>
+                )}
             </div>
 
-            {activeFilter && (
-                <div style={{
-                    marginBottom: '1rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    background: 'rgba(56, 189, 248, 0.1)',
-                    padding: '0.5rem 1rem',
-                    borderRadius: '0.5rem',
-                    border: '1px solid rgba(56, 189, 248, 0.2)',
-                    color: '#e2e8f0'
-                }}>
-                    {activeFilter.type === 'my-prompts' ? (
-                        <span><span style={{ color: '#38bdf8', fontWeight: 'bold' }}>My prompts</span></span>
-                    ) : (
-                        <span>Filtered by <strong>{activeFilter.type}</strong>: <span style={{ color: '#38bdf8', fontWeight: 'bold' }}>{activeFilter.value}</span></span>
-                    )}
-                    <button
-                        onClick={onClearFilter}
-                        style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: '#94a3b8',
-                            cursor: 'pointer',
-                            fontSize: '1.2rem',
-                            padding: '0 0.5rem',
-                            marginLeft: 'auto'
-                        }}
-                        title="Clear filter"
-                    >
-                        &times;
-                    </button>
-                </div>
+            {/* Show tool header when viewing tool-filtered content */}
+            {activeFilter && activeFilter.type === 'tool' && (
+                <ToolHeader
+                    toolName={activeFilter.value}
+                    promptCount={results.length}
+                />
             )}
 
             <div className="grid">
@@ -126,10 +164,22 @@ const PromptList = ({ onSearch, results, loading, onFilter, activeFilter, onClea
                                             padding: '0.1rem 0.4rem',
                                             background: 'rgba(56, 189, 248, 0.1)',
                                             borderRadius: '0.25rem',
-                                            border: '1px solid rgba(56, 189, 248, 0.2)'
+                                            border: '1px solid rgba(56, 189, 248, 0.2)',
+                                            transition: 'all 0.2s ease',
+                                            position: 'relative'
                                         }}
-                                        onClick={() => onFilter && onFilter('tool', tool)}
-                                        title={`Filter by ${tool}`}
+                                        onClick={(e) => handleToolClick(tool, e)}
+                                        onMouseEnter={(e) => {
+                                            e.target.style.background = 'rgba(56, 189, 248, 0.2)';
+                                            e.target.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+                                            e.target.style.transform = 'translateY(-1px)';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.target.style.background = 'rgba(56, 189, 248, 0.1)';
+                                            e.target.style.borderColor = 'rgba(56, 189, 248, 0.2)';
+                                            e.target.style.transform = 'translateY(0)';
+                                        }}
+                                        title={`Click to learn more about ${tool}`}
                                     >
                                         {tool}
                                     </span>
@@ -169,15 +219,12 @@ const PromptList = ({ onSearch, results, loading, onFilter, activeFilter, onClea
                         </div>
 
                         <div className="flex gap-2">
-                            {!canEdit(item) && (
-                                <button
-                                    className="btn btn-secondary"
-                                    onClick={() => copyToClipboard(item.prompt_text || "Prompt text not available")}
-                                    style={{ flex: 1 }}
-                                >
-                                    Copy Prompt
-                                </button>
-                            )}
+                            <StarButton
+                                promptId={item.id}
+                                isFavorited={item.user_context?.is_favorited || false}
+                                onToggle={onFavoriteToggle}
+                                size="small"
+                            />
                             <button
                                 className="btn btn-primary"
                                 onClick={() => setSelectedPrompt(item)}
@@ -220,8 +267,31 @@ const PromptList = ({ onSearch, results, loading, onFilter, activeFilter, onClea
                         <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155', paddingBottom: '1rem' }}>
                             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                                 {(Array.isArray(selectedPrompt.tool_used) ? selectedPrompt.tool_used : [selectedPrompt.tool_used]).map((tool, idx) => (
-                                    <span key={idx} style={{ fontSize: '1.1rem', fontWeight: '600', color: '#38bdf8' }}>
-                                        {tool}{idx < (Array.isArray(selectedPrompt.tool_used) ? selectedPrompt.tool_used.length : 1) - 1 ? ', ' : ''}
+                                    <span
+                                        key={idx}
+                                        style={{
+                                            fontSize: '1.1rem',
+                                            fontWeight: '600',
+                                            color: '#38bdf8',
+                                            cursor: 'pointer',
+                                            padding: '0.2rem 0.5rem',
+                                            background: 'rgba(56, 189, 248, 0.1)',
+                                            borderRadius: '0.25rem',
+                                            border: '1px solid rgba(56, 189, 248, 0.2)',
+                                            transition: 'all 0.2s ease'
+                                        }}
+                                        onClick={(e) => handleToolClick(tool, e)}
+                                        onMouseEnter={(e) => {
+                                            e.target.style.background = 'rgba(56, 189, 248, 0.2)';
+                                            e.target.style.transform = 'translateY(-1px)';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.target.style.background = 'rgba(56, 189, 248, 0.1)';
+                                            e.target.style.transform = 'translateY(0)';
+                                        }}
+                                        title={`Click to learn more about ${tool}`}
+                                    >
+                                        {tool}
                                     </span>
                                 ))}
                             </div>
@@ -265,6 +335,16 @@ const PromptList = ({ onSearch, results, loading, onFilter, activeFilter, onClea
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Tool Card Overlay */}
+            {selectedTool && (
+                <ToolCard
+                    toolName={selectedTool}
+                    onViewPrompts={handleViewAllPrompts}
+                    onClose={() => setSelectedTool(null)}
+                    promptCount={getPromptCountForTool(selectedTool)}
+                />
             )}
         </div>
     );

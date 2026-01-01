@@ -3,6 +3,7 @@ import PromptForm from './components/PromptForm';
 import PromptList from './components/PromptList';
 import Login from './components/Login';
 import AboutModal from './components/AboutModal';
+import { DashboardLayout, TopBar, MainCanvas, Sidebar } from './components/dashboard';
 
 import { API_URL } from './config';
 
@@ -19,6 +20,7 @@ function AppContent() {
   const [activeFilter, setActiveFilter] = useState(null);
   const [showAbout, setShowAbout] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState(null); // State for editing prompt
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const { addToast } = useToast();
 
   // Check auth on mount
@@ -140,7 +142,49 @@ function AppContent() {
     }
   };
 
-  const handleFilter = (type, value) => {
+  const [favoritesRefreshTrigger, setFavoritesRefreshTrigger] = useState(0);
+
+  const handleFavoriteToggle = async (promptId, isFavorited) => {
+    // Update the local state immediately for better UX
+    const updatePromptInList = (prompts) => {
+      return prompts.map(prompt => {
+        if (prompt.id === promptId) {
+          return {
+            ...prompt,
+            user_context: {
+              ...prompt.user_context,
+              is_favorited: isFavorited
+            }
+          };
+        }
+        return prompt;
+      });
+    };
+
+    // Update both allPrompts and displayedPrompts
+    setAllPrompts(prev => updatePromptInList(prev));
+    setDisplayedPrompts(prev => updatePromptInList(prev));
+
+    // If we're currently viewing favorites, refresh the favorites view
+    if (activeFilter && activeFilter.type === 'favorites') {
+      // Small delay to ensure backend is updated
+      setTimeout(() => {
+        handleFilter('favorites', 'Favorites');
+      }, 100);
+    }
+
+    // Trigger favorites count refresh
+    setFavoritesRefreshTrigger(prev => prev + 1);
+  };
+
+  const handleFilter = async (type, value) => {
+    if (type === 'clear') {
+      // Clear filter - same as clearFilter function
+      setDisplayedPrompts(allPrompts);
+      setActiveFilter(null);
+      return;
+    }
+    
     setActiveFilter({ type, value });
     if (type === 'tag') {
       const filtered = allPrompts.filter(p => p.tags && p.tags.includes(value));
@@ -157,12 +201,85 @@ function AppContent() {
     } else if (type === 'username') {
       const filtered = allPrompts.filter(p => p.username === value);
       setDisplayedPrompts(filtered);
+    } else if (type === 'my-prompts') {
+      // Filter prompts owned by the current user
+      const filtered = allPrompts.filter(p => {
+        if (!user || !user.email) return false;
+        return p.owner_email && p.owner_email === user.email;
+      });
+      setDisplayedPrompts(filtered);
+    } else if (type === 'favorites') {
+      // Fetch user's favorites and filter prompts
+      console.log('Fetching favorites for user:', user?.email);
+      try {
+        const response = await fetch(`${API_URL}/users/me/favorites`, {
+          credentials: 'include',
+        });
+        console.log('Favorites response status:', response.status);
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Favorites data:', data);
+          setDisplayedPrompts(data.favorites);
+        } else {
+          const errorText = await response.text();
+          console.error('Favorites API error:', response.status, errorText);
+          addToast('Failed to load favorites', 'error');
+          setDisplayedPrompts([]);
+        }
+      } catch (error) {
+        console.error('Error loading favorites:', error);
+        addToast('Error loading favorites', 'error');
+        setDisplayedPrompts([]);
+      }
     }
   };
 
   const clearFilter = () => {
     setDisplayedPrompts(allPrompts);
     setActiveFilter(null);
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    setActiveTab('browse');
+    setAllPrompts([]);
+    setDisplayedPrompts([]);
+    setActiveFilter(null);
+  };
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    if (tab === 'browse') {
+      setEditingPrompt(null);
+    }
+  };
+
+  const handleMobileSidebarToggle = () => {
+    setIsMobileSidebarOpen(!isMobileSidebarOpen);
+  };
+
+  // Generate context actions for top bar
+  const getContextActions = () => {
+    const actions = [];
+    
+    if (activeTab === 'browse') {
+      actions.push({
+        label: 'Add New',
+        icon: '+',
+        variant: 'primary',
+        onClick: () => setActiveTab('add')
+      });
+      
+      if (activeFilter) {
+        actions.push({
+          label: 'Clear Filter',
+          variant: 'secondary',
+          onClick: clearFilter
+        });
+      }
+    }
+    
+    return actions;
   };
 
   // Load browse results on mount - REMOVED, called in checkAuth
@@ -179,98 +296,89 @@ function AppContent() {
   }
 
   return (
-    <div className="container" style={{ position: 'relative' }}>
-      <button
-        onClick={() => setShowAbout(true)}
-        style={{
-          position: 'absolute',
-          top: '2rem',
-          right: '2rem',
-          background: 'transparent',
-          border: 'none',
-          color: '#94a3b8',
-          cursor: 'pointer',
-          fontSize: '0.9rem',
-          textDecoration: 'underline',
-          zIndex: 10
-        }}
-      >
-        About
-      </button>
-
-      <h1 style={{ marginTop: 0 }}>AI Prompt Repository</h1>
-
-      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '2rem', gap: '1rem' }}>
-        <button
-          className={`btn ${activeFilter?.type === 'my-prompts' ? 'btn-primary' : 'btn-secondary'}`}
-          onClick={() => {
-            setActiveTab('browse');
-            if (user && user.email) {
-              const myPrompts = allPrompts.filter(p => p.owner_email === user.email);
-              setDisplayedPrompts(myPrompts);
-              setActiveFilter({ type: 'my-prompts', value: 'My Prompts' });
-            } else {
-              addToast('User email not found.', 'error');
-            }
-          }}
-        >
-          My Prompts
-        </button>
-        <button
-          className={`btn ${activeTab === 'browse' && activeFilter?.type !== 'my-prompts' ? 'btn-primary' : 'btn-secondary'}`}
-          onClick={() => {
-            setActiveTab('browse');
-            setDisplayedPrompts(allPrompts); // Reset filters
-            setActiveFilter(null);
-          }}
-        >
-          Browse All
-        </button>
-        <button
-          className={`btn ${activeTab === 'add' ? 'btn-primary' : 'btn-secondary'}`}
-          onClick={() => setActiveTab('add')}
-        >
-          Add New
-        </button>
-      </div>
-
-      {activeTab === 'add' && (
-        <PromptForm onSave={handleSave} loading={loading} />
-      )}
-
-      {activeTab === 'browse' && (
-        <div>
-          <PromptList
-            onSearch={handleSearch}
-            results={displayedPrompts}
-            loading={searchLoading}
-            onFilter={handleFilter}
-            activeFilter={activeFilter}
-            onClearFilter={clearFilter}
-            onEdit={(prompt) => {
-              setActiveTab('edit');
-              // Pass the prompt data to edit
-              setEditingPrompt(prompt);
-            }}
-            user={user}
-          />
-        </div>
-      )}
-
-      {activeTab === 'edit' && (
-        <PromptForm
-          onSave={(data) => handleSave(data, editingPrompt?.id)}
-          loading={loading}
-          initialData={editingPrompt}
-          onCancel={() => {
-            setActiveTab('browse');
-            setEditingPrompt(null);
-          }}
+    <DashboardLayout
+      isMobileSidebarOpen={isMobileSidebarOpen}
+      sidebar={
+        <Sidebar
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+          activeFilter={activeFilter}
+          onFilter={handleFilter}
+          user={user}
+          onMobileToggle={handleMobileSidebarToggle}
+          favoritesRefreshTrigger={favoritesRefreshTrigger}
+          onLogout={handleLogout}
         />
-      )}
+      }
+      topBar={
+        <TopBar
+          user={user}
+          onLogout={handleLogout}
+          contextActions={getContextActions()}
+          onMobileMenuToggle={handleMobileSidebarToggle}
+        />
+      }
+      mainContent={
+        <MainCanvas context={activeTab}>
+          {/* About Button - positioned absolutely */}
+          <button
+            onClick={() => setShowAbout(true)}
+            style={{
+              position: 'absolute',
+              top: '1rem',
+              right: '1rem',
+              background: 'transparent',
+              border: 'none',
+              color: '#94a3b8',
+              cursor: 'pointer',
+              fontSize: '0.9rem',
+              textDecoration: 'underline',
+              zIndex: 10
+            }}
+          >
+            About
+          </button>
 
-      {showAbout && <AboutModal onClose={() => setShowAbout(false)} />}
-    </div>
+          {activeTab === 'add' && (
+            <PromptForm 
+              onSave={handleSave} 
+              loading={loading}
+              onCancel={() => setActiveTab('browse')}
+            />
+          )}
+
+          {activeTab === 'browse' && (
+            <PromptList
+              onSearch={handleSearch}
+              results={displayedPrompts}
+              loading={searchLoading}
+              onFilter={handleFilter}
+              activeFilter={activeFilter}
+              onEdit={(prompt) => {
+                setActiveTab('edit');
+                setEditingPrompt(prompt);
+              }}
+              user={user}
+              onFavoriteToggle={handleFavoriteToggle}
+            />
+          )}
+
+          {activeTab === 'edit' && (
+            <PromptForm
+              onSave={(data) => handleSave(data, editingPrompt?.id)}
+              loading={loading}
+              initialData={editingPrompt}
+              onCancel={() => {
+                setActiveTab('browse');
+                setEditingPrompt(null);
+              }}
+            />
+          )}
+
+          {showAbout && <AboutModal onClose={() => setShowAbout(false)} />}
+        </MainCanvas>
+      }
+    />
   );
 }
 

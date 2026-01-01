@@ -258,7 +258,7 @@ const PromptForm = ({ onSave, loading, initialData = null, onCancel = null }) =>
                 </div>
 
                 <div style={{ display: 'flex', gap: '1rem' }}>
-                    {isEditing && onCancel && (
+                    {onCancel && (
                         <button
                             type="button"
                             onClick={onCancel}

@@ -184,6 +184,8 @@ class S3Service:
                     "created_at": datetime.now().isoformat()
                 }
             ]
+            # Add in-memory favorites storage for mock mode
+            self._local_favorites = {}  # Format: {user_email: [prompt_id1, prompt_id2, ...]}
         else:
             self.s3 = boto3.client('s3')
 
@@ -291,6 +293,32 @@ class S3Service:
         except ClientError as e:
             print(f"Error deleting from S3: {e}")
             return False
+
+    def get_user_favorites(self, user_email: str) -> List[str]:
+        """Get user's favorite prompt IDs (mock mode only)"""
+        if self.mock_mode:
+            return self._local_favorites.get(user_email, [])
+        return []
+
+    def add_user_favorite(self, user_email: str, prompt_id: str) -> bool:
+        """Add a prompt to user's favorites (mock mode only)"""
+        if self.mock_mode:
+            if user_email not in self._local_favorites:
+                self._local_favorites[user_email] = []
+            if prompt_id not in self._local_favorites[user_email]:
+                self._local_favorites[user_email].append(prompt_id)
+                print(f"S3Service (Mock): Added prompt {prompt_id} to favorites for {user_email}")
+                return True
+        return False
+
+    def remove_user_favorite(self, user_email: str, prompt_id: str) -> bool:
+        """Remove a prompt from user's favorites (mock mode only)"""
+        if self.mock_mode:
+            if user_email in self._local_favorites and prompt_id in self._local_favorites[user_email]:
+                self._local_favorites[user_email].remove(prompt_id)
+                print(f"S3Service (Mock): Removed prompt {prompt_id} from favorites for {user_email}")
+                return True
+        return False
 
 import time
 

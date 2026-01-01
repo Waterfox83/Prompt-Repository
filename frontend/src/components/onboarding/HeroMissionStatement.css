@@ -1,0 +1,103 @@
+.hero-mission {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.hero-mission__content {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.hero-mission__title {
+  font-family: var(--font-family);
+  font-size: 2.5rem;
+  font-weight: 300;
+  background: linear-gradient(to right, #60a5fa, #a855f7);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 1rem;
+  line-height: 1.2;
+}
+
+.hero-mission__subtitle {
+  font-size: 1.125rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* Animated entrance for first-time users */
+.hero-mission--animated {
+  animation: heroFadeInUp 0.8s ease-out forwards;
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.hero-mission--animated .hero-mission__title {
+  animation: heroTitleGlow 1.2s ease-out 0.3s forwards;
+}
+
+.hero-mission--animated .hero-mission__subtitle {
+  animation: heroSubtitleFade 0.6s ease-out 0.6s forwards;
+  opacity: 0;
+}
+
+@keyframes heroFadeInUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes heroTitleGlow {
+  0% {
+    filter: brightness(1);
+  }
+
+  50% {
+    filter: brightness(1.2) drop-shadow(0 0 20px rgba(96, 165, 250, 0.3));
+  }
+
+  100% {
+    filter: brightness(1);
+  }
+}
+
+@keyframes heroSubtitleFade {
+  to {
+    opacity: 1;
+  }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .hero-mission {
+    padding: 1.5rem 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .hero-mission__title {
+    font-size: 2rem;
+  }
+
+  .hero-mission__subtitle {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-mission {
+    padding: 1rem 0.5rem;
+  }
+
+  .hero-mission__title {
+    font-size: 1.75rem;
+  }
+
+  .hero-mission__subtitle {
+    font-size: 0.95rem;
+  }
+}
