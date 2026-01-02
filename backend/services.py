@@ -6,7 +6,7 @@ import time
 import requests
 import numpy as np
 import io
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from datetime import datetime
 from botocore.exceptions import ClientError
 
@@ -274,6 +274,48 @@ class S3Service:
         except Exception as e:
             print(f"Error listing from S3: {e}")
             return []
+
+    def get_prompts_by_ids(self, prompt_ids: List[str]) -> List[Dict[str, Any]]:
+        """Fetch specific prompts by their IDs (optimized for favorites)."""
+        if self.mock_mode:
+            return [p for p in self._local_storage if p['id'] in prompt_ids]
+
+        prompts = []
+        for prompt_id in prompt_ids:
+            try:
+                key = f"prompts/{prompt_id}.json"
+                obj_resp = self.s3.get_object(Bucket=self.bucket_name, Key=key)
+                content = obj_resp['Body'].read().decode('utf-8')
+                prompts.append(json.loads(content))
+            except ClientError as e:
+                if e.response['Error']['Code'] != 'NoSuchKey':
+                    print(f"Error fetching prompt {prompt_id}: {e}")
+                # Skip missing prompts (they may have been deleted)
+                continue
+            except Exception as e:
+                print(f"Error fetching prompt {prompt_id}: {e}")
+                continue
+        
+        return prompts
+
+    def get_prompt_by_id(self, prompt_id: str) -> Optional[Dict[str, Any]]:
+        """Fetch a single prompt by ID (optimized)."""
+        if self.mock_mode:
+            return next((p for p in self._local_storage if p['id'] == prompt_id), None)
+
+        try:
+            key = f"prompts/{prompt_id}.json"
+            obj_resp = self.s3.get_object(Bucket=self.bucket_name, Key=key)
+            content = obj_resp['Body'].read().decode('utf-8')
+            return json.loads(content)
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'NoSuchKey':
+                return None
+            print(f"Error fetching prompt {prompt_id}: {e}")
+            return None
+        except Exception as e:
+            print(f"Error fetching prompt {prompt_id}: {e}")
+            return None
 
     def delete_prompt(self, prompt_id: str) -> bool:
         """Deletes a prompt from S3 or local memory."""

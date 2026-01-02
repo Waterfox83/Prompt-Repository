@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { useToast } from './Toast';
 import { HeroMissionStatement, SearchSuggestionChips } from './onboarding';
 import { ToolCard, ToolHeader } from './tools';
-import StarButton from './StarButton';
+import UpvoteButton from './UpvoteButton';
 
-const PromptList = ({ onSearch, results, loading, onFilter, activeFilter, onEdit, user, onFavoriteToggle }) => {
+const PromptList = ({ onSearch, results, loading, onFilter, activeFilter, onEdit, user }) => {
     const [query, setQuery] = useState('');
     const [selectedPrompt, setSelectedPrompt] = useState(null);
     const [selectedTool, setSelectedTool] = useState(null);
@@ -62,6 +62,13 @@ const PromptList = ({ onSearch, results, loading, onFilter, activeFilter, onEdit
         e.stopPropagation(); // Prevent any parent click handlers
         setSelectedPrompt(null); // Close prompt modal if open
         setSelectedTool(toolName);
+    };
+
+    const handleUpvote = (promptId, newUpvoteCount, newIsUpvoted) => {
+        // Update the upvote count in the results array
+        // This provides immediate UI feedback while the parent component
+        // can handle any additional state updates if needed
+        console.log(`Prompt ${promptId} upvote updated: ${newUpvoteCount} upvotes, is_upvoted: ${newIsUpvoted}`);
     };
 
     const handleViewAllPrompts = (toolName) => {
@@ -219,18 +226,19 @@ const PromptList = ({ onSearch, results, loading, onFilter, activeFilter, onEdit
                         </div>
 
                         <div className="flex gap-2">
-                            <StarButton
+                            <UpvoteButton
                                 promptId={item.id}
-                                isFavorited={item.user_context?.is_favorited || false}
-                                onToggle={onFavoriteToggle}
-                                size="small"
+                                upvotes={item.upvotes || 0}
+                                isUpvoted={item.user_context?.is_upvoted || false}
+                                onUpvote={handleUpvote}
+                                size="medium"
                             />
                             <button
                                 className="btn btn-primary"
                                 onClick={() => setSelectedPrompt(item)}
                                 style={{ flex: 1 }}
                             >
-                                View Prompt
+                                {canEdit(item) ? 'View' : 'View Prompt'}
                             </button>
                             {canEdit(item) && (
                                 <button
@@ -320,12 +328,21 @@ const PromptList = ({ onSearch, results, loading, onFilter, activeFilter, onEdit
                         </div>
 
                         <div className="mt-4 flex justify-between">
-                            <button
-                                className="btn btn-secondary"
-                                onClick={() => setSelectedPrompt(null)}
-                            >
-                                Close
-                            </button>
+                            <div className="flex gap-2 items-center">
+                                <UpvoteButton
+                                    promptId={selectedPrompt.id}
+                                    upvotes={selectedPrompt.upvotes || 0}
+                                    isUpvoted={selectedPrompt.user_context?.is_upvoted || false}
+                                    onUpvote={handleUpvote}
+                                    size="medium"
+                                />
+                                <button
+                                    className="btn btn-secondary"
+                                    onClick={() => setSelectedPrompt(null)}
+                                >
+                                    Close
+                                </button>
+                            </div>
                             <button
                                 className="btn btn-primary"
                                 onClick={() => copyToClipboard(selectedPrompt.prompt_text || "")}

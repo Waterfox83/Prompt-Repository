@@ -209,26 +209,35 @@
 }
 
 .use-cases-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  flex-direction: column;
+  gap: 0.625rem;
 }
 
-.use-case-tag {
-  background: rgba(139, 92, 246, 0.1);
-  border: 1px solid rgba(139, 92, 246, 0.2);
-  color: #a78bfa;
-  padding: 0.375rem 0.75rem;
-  border-radius: 0.75rem;
-  font-size: 0.875rem;
-  font-weight: 500;
+.use-case-item {
+  color: #cbd5e1;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  padding-left: 1.5rem;
+  position: relative;
   transition: all 0.2s ease;
 }
 
-.use-case-tag:hover {
-  background: rgba(139, 92, 246, 0.15);
-  border-color: rgba(139, 92, 246, 0.3);
-  transform: translateY(-1px);
+.use-case-item::before {
+  content: '→';
+  position: absolute;
+  left: 0;
+  color: #8b5cf6;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.use-case-item:hover {
+  color: #e2e8f0;
+  transform: translateX(4px);
 }
 
 @keyframes toolUseCasesFade {
@@ -391,10 +400,6 @@
   .tool-card-actions {
     gap: 0.5rem;
   }
-
-  .use-cases-list {
-    justify-content: center;
-  }
 }
 
 /* Custom scrollbar for tool card content */
@@ -442,8 +447,11 @@
   }
   
   .tool-card-action:hover,
-  .use-case-tag:hover,
   .tool-card-close:hover {
+    transform: none;
+  }
+  
+  .use-case-item:hover {
     transform: none;
   }
 }

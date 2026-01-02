@@ -1,11 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { API_URL } from '../config';
+import { cachedFetch } from '../utils/requestCache';
 
 export const useFavorites = (user) => {
   const [favoritesCount, setFavoritesCount] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  const fetchFavoritesCount = async () => {
+  // Memoize the function so it doesn't change on every render
+  // This prevents infinite loops in useEffect
+  const fetchFavoritesCount = useCallback(async () => {
     if (!user) {
       setFavoritesCount(0);
       return;
@@ -13,9 +16,11 @@ export const useFavorites = (user) => {
 
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/users/me/favorites`, {
+      // Use cachedFetch to prevent duplicate simultaneous requests
+      const response = await cachedFetch(`${API_URL}/users/me/favorites`, {
         credentials: 'include',
-      });
+      }, 2000); // Cache for 2 seconds
+      
       if (response.ok) {
         const data = await response.json();
         setFavoritesCount(data.count || 0);
@@ -28,11 +33,11 @@ export const useFavorites = (user) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]); // Only recreate when user changes
 
   useEffect(() => {
     fetchFavoritesCount();
-  }, [user]);
+  }, [fetchFavoritesCount]); // Now safe to include in dependencies
 
   return {
     favoritesCount,

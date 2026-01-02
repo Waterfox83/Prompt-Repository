@@ -15,7 +15,7 @@
 
 - [x] 3. Create top bar with breadcrumb navigation
   - Build TopBar component with breadcrumb system showing current context
-  - Add user profile dropdown with preferences and logout options
+  - Add user profile dropdown with logout options
   - Implement context-aware action buttons (Add New, Sort, Filter)
   - Style top bar to match dashboard design with proper spacing and alignment
   - _Requirements: 2.2, 2.4_

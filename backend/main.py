@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from mangum import Mangum
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from typing import List, Optional
 from fastapi import Request, Response, Depends, Cookie
 from fastapi.responses import RedirectResponse
@@ -146,6 +146,19 @@ class GenerateRequest(BaseModel):
     title: str
     prompt_text: str
 
+class UpdateToolsRequest(BaseModel):
+    tool_names: List[str]
+    
+    @validator('tool_names')
+    def validate_tool_names(cls, v):
+        if not v:
+            raise ValueError('tool_names cannot be empty')
+        # Trim whitespace and validate
+        cleaned = [name.strip() for name in v]
+        if any(not name for name in cleaned):
+            raise ValueError('tool_names cannot contain empty strings')
+        return cleaned
+
 @app.get("/")
 def read_root():
     return {"message": "AI Prompt Repository API is running"}
@@ -241,28 +254,16 @@ def list_prompts(user_email: Optional[str] = Depends(get_current_user_optional))
 @app.put("/prompts/{prompt_id}")
 def update_prompt(prompt_id: str, prompt: Prompt, user_email: str = Depends(get_current_user_dep)):
     try:
-        # Verify ownership
-        try:
-            # We need to fetch the existing prompt to check ownership
-            # Since s3_service.list_prompts() might be heavy, we should ideally have get_prompt
-            # But for now, we can rely on list_prompts filtering or add get_prompt to service
-            # Let's use list_prompts and filter for now as it's MVP
-            all_prompts = s3_service.list_prompts()
-            existing_prompt = next((p for p in all_prompts if p['id'] == prompt_id), None)
+        # Verify ownership (optimized - fetch only the specific prompt)
+        existing_prompt = s3_service.get_prompt_by_id(prompt_id)
+        
+        if not existing_prompt:
+            raise HTTPException(status_code=404, detail="Prompt not found")
             
-            if not existing_prompt:
-                raise HTTPException(status_code=404, detail="Prompt not found")
-                
-            # Check if current user is the owner
-            # Note: Old prompts might not have owner_email, so they are uneditable by default
-            if existing_prompt.get('owner_email') != user_email:
-                raise HTTPException(status_code=403, detail="You are not authorized to edit this prompt")
-                
-        except Exception as e:
-            if isinstance(e, HTTPException):
-                raise e
-            # If any other error (e.g. S3 down), let it bubble up or handle
-            pass
+        # Check if current user is the owner
+        # Note: Old prompts might not have owner_email, so they are uneditable by default
+        if existing_prompt.get('owner_email') != user_email:
+            raise HTTPException(status_code=403, detail="You are not authorized to edit this prompt")
 
         # Update in S3
         prompt_dict = prompt.dict()
@@ -296,6 +297,65 @@ def update_prompt(prompt_id: str, prompt: Prompt, user_email: str = Depends(get_
         return {"status": "success", "id": prompt_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.patch("/prompts/{prompt_id}/tools")
+def update_prompt_tools(prompt_id: str, request: UpdateToolsRequest):
+    """Update tool names for a specific prompt (one-time migration endpoint, optimized)"""
+    try:
+        # Fetch the specific prompt (optimized - no need to fetch all prompts)
+        prompt = s3_service.get_prompt_by_id(prompt_id)
+        
+        # Raise 404 if prompt not found
+        if not prompt:
+            raise HTTPException(status_code=404, detail=f"Prompt {prompt_id} not found")
+        
+        # Store old tool names for response
+        old_tool_names = prompt.get('tool_used', [])
+        
+        # Update the prompt with new tool names
+        prompt['tool_used'] = request.tool_names
+        
+        # Update in S3 (preserving all other fields)
+        s3_service.update_prompt(prompt_id, prompt)
+        
+        # Regenerate vector embedding with new tool names
+        searchable_text = vector_service._construct_searchable_text(
+            prompt['title'],
+            prompt['description'],
+            prompt['prompt_text'],
+            request.tool_names,
+            prompt['tags']
+        )
+        
+        embedding_updated = vector_service.add_point(
+            text=searchable_text,
+            metadata={
+                "id": prompt_id,
+                "title": prompt['title'],
+                "description": prompt['description'],
+                "tags": prompt['tags'],
+                "username": prompt.get('username'),
+                "tool_used": request.tool_names,
+                "prompt_text": prompt['prompt_text']
+            }
+        )
+        
+        # Return response with old and new tool names
+        return {
+            "status": "success",
+            "prompt_id": prompt_id,
+            "old_tool_names": old_tool_names,
+            "new_tool_names": request.tool_names,
+            "embedding_updated": bool(embedding_updated),
+            "message": "Tool names updated successfully"
+        }
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        # Handle unexpected errors
+        raise HTTPException(status_code=500, detail=f"Failed to update tool names: {str(e)}")
 
 @app.get("/search")
 def search_prompts(q: str, user_email: Optional[str] = Depends(get_current_user_optional)):
@@ -720,11 +780,10 @@ def get_tools_by_category(category_id: str):
 
 @app.post("/prompts/{prompt_id}/upvote")
 def upvote_prompt(prompt_id: str, user_email: str = Depends(get_current_user_dep)):
-    """Upvote a prompt"""
+    """Upvote a prompt (optimized)"""
     try:
-        # Get all prompts to find the one to upvote
-        all_prompts = s3_service.list_prompts()
-        prompt = next((p for p in all_prompts if p['id'] == prompt_id), None)
+        # Get the specific prompt (optimized - no need to fetch all prompts)
+        prompt = s3_service.get_prompt_by_id(prompt_id)
         
         if not prompt:
             raise HTTPException(status_code=404, detail="Prompt not found")
@@ -760,11 +819,10 @@ def upvote_prompt(prompt_id: str, user_email: str = Depends(get_current_user_dep
 
 @app.delete("/prompts/{prompt_id}/upvote")
 def remove_upvote(prompt_id: str, user_email: str = Depends(get_current_user_dep)):
-    """Remove upvote from a prompt"""
+    """Remove upvote from a prompt (optimized)"""
     try:
-        # Get all prompts to find the one to remove upvote from
-        all_prompts = s3_service.list_prompts()
-        prompt = next((p for p in all_prompts if p['id'] == prompt_id), None)
+        # Get the specific prompt (optimized - no need to fetch all prompts)
+        prompt = s3_service.get_prompt_by_id(prompt_id)
         
         if not prompt:
             raise HTTPException(status_code=404, detail="Prompt not found")
@@ -798,31 +856,29 @@ def remove_upvote(prompt_id: str, user_email: str = Depends(get_current_user_dep
 
 @app.get("/users/me/favorites")
 def get_user_favorites(user_email: str = Depends(get_current_user_dep)):
-    """Get user's favorite prompts"""
+    """Get user's favorite prompts (optimized)"""
     try:
         if s3_service.mock_mode:
             # Get favorites from in-memory storage
             favorite_ids = s3_service.get_user_favorites(user_email)
-            all_prompts = s3_service.list_prompts()
-            favorite_prompts = [p for p in all_prompts if p['id'] in favorite_ids]
+            favorite_prompts = s3_service.get_prompts_by_ids(favorite_ids)
             return {
                 "favorites": favorite_prompts,
                 "count": len(favorite_prompts)
             }
         
-        # Real S3 implementation
+        # Real S3 implementation - get favorite IDs first
         try:
             user_data = s3_service.s3.get_object(
                 Bucket=s3_service.bucket_name,
                 Key=f"users/{user_email}/favorites.json"
             )
-            favorites = json.loads(user_data['Body'].read().decode('utf-8'))
+            favorite_ids = json.loads(user_data['Body'].read().decode('utf-8'))
         except:
-            favorites = []
+            favorite_ids = []
         
-        # Get full prompt data for favorites
-        all_prompts = s3_service.list_prompts()
-        favorite_prompts = [p for p in all_prompts if p['id'] in favorites]
+        # Fetch only the favorited prompts (optimized - no need to fetch all prompts)
+        favorite_prompts = s3_service.get_prompts_by_ids(favorite_ids)
         
         return {
             "favorites": favorite_prompts,
@@ -835,31 +891,20 @@ def get_user_favorites(user_email: str = Depends(get_current_user_dep)):
 
 @app.post("/users/me/favorites/{prompt_id}")
 def add_to_favorites(prompt_id: str, user_email: str = Depends(get_current_user_dep)):
-    """Add a prompt to user's favorites"""
+    """Add a prompt to user's favorites (optimized - no prompt existence check)"""
     try:
-        # Verify prompt exists
-        all_prompts = s3_service.list_prompts()
-        prompt = next((p for p in all_prompts if p['id'] == prompt_id), None)
-        
-        if not prompt:
-            raise HTTPException(status_code=404, detail="Prompt not found")
+        # Note: We skip the prompt existence check to avoid fetching all prompts
+        # The prompt will simply not appear if it doesn't exist or gets deleted later
         
         if s3_service.mock_mode:
             # Use in-memory storage for mock mode
             success = s3_service.add_user_favorite(user_email, prompt_id)
-            if success:
-                favorite_ids = s3_service.get_user_favorites(user_email)
-                return {
-                    "status": "success",
-                    "message": "Added to favorites",
-                    "favorites_count": len(favorite_ids)
-                }
-            else:
-                return {
-                    "status": "success",
-                    "message": "Already in favorites",
-                    "favorites_count": len(s3_service.get_user_favorites(user_email))
-                }
+            favorite_ids = s3_service.get_user_favorites(user_email)
+            return {
+                "status": "success",
+                "message": "Added to favorites" if success else "Already in favorites",
+                "favorites_count": len(favorite_ids)
+            }
         
         # Real S3 implementation
         try:

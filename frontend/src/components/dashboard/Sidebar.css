@@ -16,6 +16,32 @@
   margin-bottom: 0;
   min-height: 60px;
   border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+/* Sidebar Content - Scrollable Area */
+.sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: 1rem;
+}
+
+.sidebar-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-content::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.sidebar-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .sidebar-title {
@@ -290,6 +316,11 @@
   margin-top: 0.5rem;
 }
 
+.tools-list.nested {
+  margin-top: 0;
+  margin-left: 0;
+}
+
 .tool-item {
   display: flex;
   align-items: center;
@@ -304,6 +335,15 @@
   font-size: 0.875rem;
   font-weight: 400;
   gap: 0.75rem;
+}
+
+.tool-item.others-header {
+  padding-left: 2.25rem;
+  font-weight: 500;
+}
+
+.tools-list.nested .tool-item {
+  padding-left: 3.5rem;
 }
 
 .tool-item:hover {
@@ -362,9 +402,9 @@
 
 /* Footer Links */
 .sidebar-footer {
-  padding: 0 1.5rem;
+  padding: 1rem 1.5rem;
   border-top: 1px solid var(--border-color);
-  padding-top: 1rem;
+  flex-shrink: 0;
 }
 
 .footer-link {
@@ -411,6 +451,14 @@
   .tool-item {
     padding-left: 1.75rem;
     padding-right: 1rem;
+  }
+  
+  .tool-item.others-header {
+    padding-left: 1.75rem;
+  }
+  
+  .tools-list.nested .tool-item {
+    padding-left: 3rem;
   }
   
   .add-new-btn {

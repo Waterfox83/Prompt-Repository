@@ -45,7 +45,7 @@ components/
 **New Service Layer**
 - `ToolMetadataService`: Manages tool information, descriptions, and educational content
 - `OnboardingService`: Handles user onboarding state and guided experience tracking
-- Enhanced `S3Service` methods for user preferences and onboarding data
+- Enhanced `S3Service` methods for onboarding data
 
 **API Endpoints Expansion**
 ```python
@@ -57,8 +57,6 @@ GET /tools/{tool_id}/stats - Get usage statistics for tool
 # User Experience
 GET /users/me/onboarding - Get user's onboarding progress
 PUT /users/me/onboarding - Update onboarding state
-GET /users/me/preferences - Get user dashboard preferences
-PUT /users/me/preferences - Update user preferences
 
 # Enhanced Search
 GET /search/suggestions - Get popular search terms and suggestions
@@ -262,7 +260,7 @@ const getToolInfo = (toolName: string): ToolMetadata => {
 ### 2. Integration Testing
 - **User Journey Testing**: Complete flows from first visit to successful contribution
 - **Cross-Component Communication**: Tool selection → filtering → prompt display chain
-- **State Management**: Onboarding state persistence, user preferences, session handling
+- **State Management**: Onboarding state persistence, session handling
 
 ### 3. User Experience Testing
 - **A/B Testing Framework**: Compare onboarding completion rates with/without guidance

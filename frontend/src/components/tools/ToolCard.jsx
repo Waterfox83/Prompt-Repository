@@ -94,7 +94,7 @@ const ToolCard = ({ toolName, onViewPrompts, onClose, promptCount = 0 }) => {
         </button>
 
         <div className="tool-card-header">
-          <div className="tool-card-icon">{tool.icon}</div>
+          <div className="tool-card-icon">◽️</div>
           <div className="tool-card-title-section">
             <h2 id="tool-card-title" className="tool-card-title">{tool.displayName}</h2>
             {categoryInfo && (
@@ -113,13 +113,13 @@ const ToolCard = ({ toolName, onViewPrompts, onClose, promptCount = 0 }) => {
         {tool.useCases && tool.useCases.length > 0 && (
           <div className="tool-card-use-cases">
             <h3>Use Cases</h3>
-            <div className="use-cases-list">
+            <ul className="use-cases-list">
               {tool.useCases.map((useCase, index) => (
-                <span key={index} className="use-case-tag">
+                <li key={index} className="use-case-item">
                   {useCase}
-                </span>
+                </li>
               ))}
-            </div>
+            </ul>
           </div>
         )}
 
@@ -151,15 +151,6 @@ const ToolCard = ({ toolName, onViewPrompts, onClose, promptCount = 0 }) => {
             </button>
           )}
         </div>
-
-        {tool.isFallback && (
-          <div className="tool-card-fallback-notice">
-            <p>
-              <strong>Note:</strong> This tool information is limited. 
-              Visit the official website for more details.
-            </p>
-          </div>
-        )}
       </div>
     </div>
   );

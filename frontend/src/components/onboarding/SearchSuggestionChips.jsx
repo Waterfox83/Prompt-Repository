@@ -5,10 +5,9 @@ const SearchSuggestionChips = ({ onSuggestionClick, isFirstTime = false }) => {
   const suggestions = [
     { label: 'Refactor Python Code', query: 'refactor python code', category: 'coding' },
     { label: 'Write Unit Tests', query: 'write unit tests', category: 'coding' },
-    { label: 'Email Drafting', query: 'professional email writing', category: 'writing' },
+    { label: 'Review Kotlin code', query: 'kotlin code review', category: 'writing' },
     { label: 'Debug JavaScript', query: 'debug javascript errors', category: 'coding' },
-    { label: 'API Documentation', query: 'generate API documentation', category: 'coding' },
-    { label: 'Creative Writing', query: 'creative writing prompts', category: 'writing' }
+    { label: 'Generate Documentation', query: 'generate documentation', category: 'coding' }
   ];
 
   const handleChipClick = (suggestion) => {

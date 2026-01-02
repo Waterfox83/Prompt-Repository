@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import toolMetadataService from '../../services/ToolMetadataService';
 import './ToolHeader.css';
 
 const ToolHeader = ({ toolName, promptCount = 0 }) => {
+  const [isUseCasesExpanded, setIsUseCasesExpanded] = useState(false);
+
   // Get tool information from metadata service
   const tool = toolMetadataService.getToolByDisplayName(toolName) || 
                toolMetadataService.createFallbackTool(toolName);
@@ -42,12 +44,27 @@ const ToolHeader = ({ toolName, promptCount = 0 }) => {
         <p>{tool.detailedDescription || tool.description}</p>
       </div>
 
-      {tool.isFallback && (
-        <div className="tool-header-fallback-notice">
-          <p>
-            <strong>Note:</strong> This tool information is limited. 
-            Visit the official website for more details.
-          </p>
+      {tool.useCases && tool.useCases.length > 0 && (
+        <div className="tool-header-use-cases">
+          <button 
+            className="use-cases-header"
+            onClick={() => setIsUseCasesExpanded(!isUseCasesExpanded)}
+          >
+            <h3>Use Cases ({tool.useCases.length})</h3>
+            <span className={`expand-icon ${isUseCasesExpanded ? 'expanded' : ''}`}>
+              ▶
+            </span>
+          </button>
+          
+          {isUseCasesExpanded && (
+            <ul className="use-cases-list">
+              {tool.useCases.map((useCase, index) => (
+                <li key={index} className="use-case-item">
+                  {useCase}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
     </div>

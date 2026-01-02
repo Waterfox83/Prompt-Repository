@@ -1,106 +1,169 @@
 {
   "tools": [
     {
-      "id": "chatgpt",
-      "displayName": "ChatGPT",
-      "description": "OpenAI's conversational AI for general-purpose text generation and problem-solving",
-      "detailedDescription": "ChatGPT is a versatile AI assistant that excels at writing, coding, analysis, and creative tasks. It can help with code reviews, documentation, debugging, and explaining complex concepts.",
-      "category": "coding",
-      "accessUrl": "https://chat.openai.com",
-      "useCases": [
-        "Code review and debugging",
-        "Writing documentation",
-        "Explaining complex algorithms",
-        "Generating test cases",
-        "Refactoring code"
-      ],
-      "gettingStartedUrl": null,
-      "popularPrompts": []
-    },
-    {
-      "id": "claude",
-      "displayName": "Claude",
-      "description": "Anthropic's AI assistant focused on helpful, harmless, and honest interactions",
-      "detailedDescription": "Claude excels at analytical thinking, code analysis, and detailed explanations. It's particularly strong at understanding context and providing thorough, well-reasoned responses.",
-      "category": "coding",
-      "accessUrl": "https://claude.ai",
-      "useCases": [
-        "Code analysis and optimization",
-        "Technical writing",
-        "System design discussions",
-        "Code architecture reviews",
-        "Complex problem solving"
-      ],
-      "gettingStartedUrl": null,
-      "popularPrompts": []
-    },
-    {
-      "id": "gemini",
-      "displayName": "Gemini",
-      "description": "Google's multimodal AI model for text, code, and image understanding",
-      "detailedDescription": "Gemini combines text and visual understanding, making it excellent for projects involving both code and visual elements. It integrates well with Google's ecosystem.",
-      "category": "coding",
-      "icon": "💎",
-      "accessUrl": "https://gemini.google.com",
-      "useCases": [
-        "Multimodal code analysis",
-        "Image-to-code generation",
-        "Google Cloud integration",
-        "Data analysis with charts",
-        "API documentation with visuals"
-      ],
-      "gettingStartedUrl": null,
-      "popularPrompts": []
-    },
-    {
       "id": "copilot",
-      "displayName": "GitHub Copilot",
+      "displayName": "GitHub Copilot in IDE",
       "description": "AI pair programmer that suggests code completions and entire functions",
-      "detailedDescription": "GitHub Copilot is integrated directly into your IDE, providing real-time code suggestions, function completions, and helping with boilerplate code generation.",
+      "detailedDescription": "GitHub Copilot is an AI-powered coding assistant that integrates seamlessly into your IDE, leveraging OpenAI's Codex model to provide intelligent code suggestions. It understands context from your codebase and comments, offering real-time completions for entire functions, complex algorithms, and repetitive patterns. Copilot supports dozens of programming languages and frameworks, learning from billions of lines of public code to help you write better code faster.",
       "category": "coding",
-      "icon": "🚁",
       "accessUrl": "https://github.com/features/copilot",
       "useCases": [
-        "Real-time code completion",
-        "Function generation",
-        "Boilerplate code creation",
-        "Unit test generation",
-        "Code pattern suggestions"
+        "Autocomplete entire functions from comments or function signatures",
+        "Generate unit tests and test cases for existing code",
+        "Convert code between different programming languages",
+        "Write boilerplate code for APIs, database connections, and configurations",
+        "Suggest code patterns and best practices for common tasks",
+        "Generate regular expressions and complex data transformations",
+        "Create documentation and inline code comments"
       ],
       "gettingStartedUrl": null,
       "popularPrompts": []
+    },
+    {
+      "id": "github-copilot-web",
+      "displayName": "GitHub Copilot (Web)",
+      "description": "Browser-based Copilot with Spaces, Agents, and Chat for collaborative coding, automation, and AI-assisted development.",
+      "detailedDescription": "GitHub Copilot (Web) brings Copilot’s AI power to the browser with three key capabilities: (1) **Spaces** – shareable, self-contained projects that run in the cloud, ideal for demos, prototyping, and reproducible examples; (2) **Agents** – configurable AI assistants that can follow multi-step instructions, perform actions, and help automate workflows; and (3) **Chat** – a conversational interface grounded in your repository or project context for explanations, refactoring, and code generation. Together, these features enable teams to experiment, collaborate, and automate directly on GitHub without local setup.",
+      "category": "coding",
+      "accessUrl": "https://github.com/copilot",
+      "useCases": [
+        "Spin up a shareable prototype in a Space to demo a feature or bug fix",
+        "Create a custom Agent that runs repeatable tasks (lint, tests, doc generation)",
+        "Use Copilot Chat to explain unfamiliar code and propose refactors",
+        "Generate unit tests and benchmarks from function signatures and comments",
+        "Rapidly scaffold microservices or scripts and publish them to a Space",
+        "Automate repository housekeeping with Agents (labels, PR templates, checks)"
+      ],
+      "gettingStartedUrl": "https://github.com/copilot",
+      "popularPrompts": [
+        "In Chat: \"Explain the data flow in this repo and highlight potential bottlenecks.\"",
+        "In Chat: \"Refactor this function for readability and add unit tests using Jest.\"",
+        "Agent: \"Run lint + tests on this branch and open a PR with a summary of changes.\"",
+        "Space: \"Create a minimal Flask API with one /health endpoint and deploy in this Space.\"",
+        "Agent: \"Generate a CHANGELOG from merged PRs since v1.4 and tag a new release.\""
+      ]
+    },
+    {
+      "id": "microsoft-copilot-web",
+      "displayName": "Microsoft Copilot",
+      "description": "Secure AI chat in the browser for drafting, summarization, and image generation with commercial data protection.",
+      "detailedDescription": "Microsoft Copilot (formerly Bing Chat Enterprise) provides enterprise-grade protections for prompts and responses in the browser. It’s ideal for quick research, summarization, rewriting, and image generation when you don’t need access to organizational content in M365. Use your Pega work account and ensure the Work/SSO toggle is enabled.",
+      "category": "writing",
+      "accessUrl": "https://copilot.microsoft.com",
+      "useCases": [
+        "Summarize long articles, web pages, PDFs and generate bullet highlights",
+        "Draft, rewrite, and shorten emails or documents",
+        "Create images and graphics for presentations and posts",
+        "Brainstorm ideas and generate outline structures for proposals"
+      ],
+      "gettingStartedUrl": "https://copilot.microsoft.com",
+      "popularPrompts": [
+        "Summarize this article into 5 bullets and 3 action items",
+        "Rewrite this email for a client in a concise, friendly tone",
+        "Create a one-paragraph abstract from the attached text",
+        "Generate an image of a modern workflow diagram for a slide"
+      ]
+    },
+    {
+      "id": "m365-copilot",
+      "displayName": "Microsoft 365 Copilot (in-app)",
+      "description": "AI integrated into Outlook, Word, Excel, PowerPoint, and Teams; requires a subscription via SailPoint.",
+      "detailedDescription": "Microsoft 365 Copilot works inside your M365 apps and can securely leverage your emails, files, and chats across Outlook, SharePoint, OneDrive, and Teams. Use it for meeting summaries, document drafting, spreadsheet analysis, presentations, and more. Access requires a licensed subscription requested through SailPoint in accordance with Pega’s guidance.",
+      "category": "automation",
+      "accessUrl": "microsoft365://copilot",
+      "useCases": [
+        "Summarize meetings and generate action items in Teams",
+        "Draft Word documents and proposals from referenced files",
+        "Analyze Excel data, generate formulas, and build charts",
+        "Create PowerPoint presentations from outlines or documents",
+        "Summarize email threads and suggest replies in Outlook"
+      ],
+      "gettingStartedUrl": "https://support.microsoft.com/copilot",
+      "popularPrompts": [
+        "In Word: Draft a 2-page proposal using these references in OneDrive",
+        "In Excel: Explain this model, add a forecast, and build a chart",
+        "In Teams: Summarize the last meeting and create follow-up tasks",
+        "In PowerPoint: Turn this outline into a 6-slide deck with speaker notes"
+      ]
+    },
+    {
+      "id": "google-gemini-enterprise",
+      "displayName": "Google Gemini Enterprise",
+      "description": "Org-wide access to Google’s enterprise AI for research, reasoning, and content workflows via SSO.",
+      "detailedDescription": "Gemini Enterprise provides powerful web-based AI for deep research, content creation, and multimodal tasks. At Pega, Gemini is available with SSO and integrates with Agentspace and NotebookLM for advanced knowledge and learning scenarios.",
+      "category": "writing",
+      "accessUrl": "https://gemini.pega.com/",
+      "useCases": [
+        "Perform deep research and draft reports with source citations",
+        "Generate high-quality content (text, tables, images) for presentations",
+        "Explore alternatives and reasoning steps for complex questions",
+        "Create customer-ready materials leveraging enterprise context"
+      ],
+      "gettingStartedUrl": "https://gemini.pega.com/",
+      "popularPrompts": [
+        "Research this topic and return a 1-page brief with sources",
+        "Draft customer-facing copy and a comparison table for these features",
+        "Outline three solution options with pros/cons and risks",
+        "Summarize findings and propose next steps for this initiative"
+      ]
+    },
+    {
+      "id": "notebooklm-enterprise",
+      "displayName": "NotebookLM (Enterprise)",
+      "description": "AI-powered notebook that builds an expert on your sources, creating summaries, FAQs, and study guides.",
+      "detailedDescription": "NotebookLM lets you import documents and create a grounded ‘notebook expert’ that answers questions, synthesizes content, and generates guides based on your sources.",
+      "category": "writing",
+      "accessUrl": "https://gemini.pega.com/",
+      "useCases": [
+        "Create study guides and FAQs from product docs or specs",
+        "Generate topic summaries grounded in uploaded sources",
+        "Ask targeted questions and get citations from your material",
+        "Derive outlines and flashcards for onboarding or enablement"
+      ],
+      "gettingStartedUrl": "https://gemini.pega.com/",
+      "popularPrompts": [
+        "Build a study guide from these 5 PDFs with section summaries",
+        "Create a FAQ answering the top 20 questions from this doc set",
+        "Generate a 1-page executive summary with cited sources",
+        "Prepare onboarding flashcards from our policy documents"
+      ]
+    },
+    {
+      "id": "azure-openai-pega",
+      "displayName": "Pega-hosted Azure OpenAI Chat (GPT-4o)",
+      "description": "Secure internal web chat (SSO) for analyzing long texts, document review, and summarization.",
+      "detailedDescription": "Pega’s hosted Azure OpenAI Chat gives you access to GPT‑4o within Pega’s secure environment. It’s optimized for handling large inputs (long transcripts, specs, contracts) and producing structured analyses and summaries without pulling in internet content. Use SSO to sign in.",
+      "category": "writing",
+      "accessUrl": "https://azureopenai.pega.com",
+      "useCases": [
+        "Analyze and summarize long meeting notes and transcripts",
+        "Extract key points and decisions from multi-page documents",
+        "Generate structured outlines and executive summaries",
+        "Draft technical documentation from raw notes"
+      ],
+      "gettingStartedUrl": "https://azureopenai.pega.com",
+      "popularPrompts": [
+        "Read this 20-page spec and return risks, dependencies, and open questions",
+        "Summarize this transcript into decisions, owners, and deadlines",
+        "Convert these notes into a well-structured design doc",
+        "Create a comparison table of the features described in this document"
+      ]
     },
     {
       "id": "cursor",
       "displayName": "Cursor",
       "description": "AI-powered code editor with built-in AI assistance",
-      "detailedDescription": "Cursor is a code editor that integrates AI directly into the development workflow, offering contextual code suggestions and AI-powered editing capabilities.",
+      "detailedDescription": "Cursor is a next-generation code editor built from the ground up with AI at its core. It combines the familiarity of VS Code with powerful AI capabilities, allowing you to chat with your codebase, make multi-file edits with natural language commands, and get intelligent suggestions that understand your entire project context. Cursor uses advanced models like GPT-4 and Claude to provide context-aware assistance that goes beyond simple autocomplete.",
       "category": "coding",
       "accessUrl": "https://cursor.sh",
       "useCases": [
-        "AI-assisted code editing",
-        "Contextual code suggestions",
-        "Codebase understanding",
-        "Refactoring assistance",
-        "Code explanation"
-      ],
-      "gettingStartedUrl": null,
-      "popularPrompts": []
-    },
-    {
-      "id": "grammarly",
-      "displayName": "Grammarly",
-      "description": "AI writing assistant for grammar, style, and clarity improvements",
-      "detailedDescription": "Grammarly helps improve writing quality by checking grammar, suggesting style improvements, and ensuring clarity in communication.",
-      "category": "writing",
-      "icon": "✍️",
-      "accessUrl": "https://grammarly.com",
-      "useCases": [
-        "Grammar and spell checking",
-        "Style improvement suggestions",
-        "Tone adjustment",
-        "Clarity enhancement",
-        "Professional writing"
+        "Chat with your entire codebase to understand complex systems",
+        "Make multi-file edits using natural language instructions",
+        "Refactor code across multiple files simultaneously",
+        "Generate new features by describing them in plain English",
+        "Debug issues by asking questions about error messages",
+        "Understand unfamiliar code with AI-powered explanations",
+        "Migrate codebases to new frameworks or patterns"
       ],
       "gettingStartedUrl": null,
       "popularPrompts": []
@@ -109,16 +172,17 @@
       "id": "jasper",
       "displayName": "Jasper",
       "description": "AI content creation platform for marketing and business writing",
-      "detailedDescription": "Jasper specializes in marketing content, blog posts, social media content, and business communications with brand voice consistency.",
+      "detailedDescription": "Jasper is an enterprise-grade AI writing assistant designed specifically for marketing teams and content creators. It offers 50+ templates for different content types, learns your brand voice to maintain consistency across all content, and integrates with your existing workflow tools. Jasper can generate long-form content, optimize for SEO, and adapt tone for different audiences, making it ideal for scaling content production while maintaining quality and brand identity.",
       "category": "writing",
-      "icon": "📄",
       "accessUrl": "https://jasper.ai",
       "useCases": [
-        "Marketing copy creation",
-        "Blog post writing",
-        "Social media content",
-        "Email campaigns",
-        "Brand voice consistency"
+        "Create high-converting ad copy for Google, Facebook, and LinkedIn campaigns",
+        "Write SEO-optimized blog posts and articles at scale",
+        "Generate engaging social media content across multiple platforms",
+        "Craft personalized email marketing campaigns and sequences",
+        "Develop product descriptions and landing page copy",
+        "Maintain consistent brand voice across all marketing materials",
+        "Repurpose existing content into different formats and channels"
       ],
       "gettingStartedUrl": null,
       "popularPrompts": []
@@ -127,51 +191,17 @@
       "id": "notion-ai",
       "displayName": "Notion AI",
       "description": "Integrated AI assistant within Notion for content creation and organization",
-      "detailedDescription": "Notion AI helps with writing, brainstorming, and organizing content directly within your Notion workspace, making it perfect for documentation and project management.",
+      "detailedDescription": "Notion AI is seamlessly integrated into the Notion workspace, providing AI-powered assistance exactly where you work. It can summarize long documents, generate action items from meeting notes, improve writing quality, and help organize information. Since it works directly within your existing Notion pages and databases, there's no context switching required. Notion AI understands the structure of your workspace and can help maintain consistency across your documentation, wikis, and project management systems.",
       "category": "writing",
-      "icon": "📋",
       "accessUrl": "https://notion.so",
       "useCases": [
-        "Documentation writing",
-        "Meeting notes summarization",
-        "Project planning",
-        "Content brainstorming",
-        "Task organization"
-      ],
-      "gettingStartedUrl": null,
-      "popularPrompts": []
-    },
-    {
-      "id": "midjourney",
-      "displayName": "Midjourney",
-      "description": "AI image generation tool for creating artistic and professional visuals",
-      "detailedDescription": "Midjourney excels at creating high-quality, artistic images from text descriptions. It's particularly strong at stylized artwork and creative visuals.",
-      "category": "design",
-      "accessUrl": "https://midjourney.com",
-      "useCases": [
-        "Concept art creation",
-        "Marketing visuals",
-        "Artistic illustrations",
-        "Product mockups",
-        "Creative brainstorming"
-      ],
-      "gettingStartedUrl": null,
-      "popularPrompts": []
-    },
-    {
-      "id": "dall-e",
-      "displayName": "DALL-E",
-      "description": "OpenAI's image generation model for creating images from text descriptions",
-      "detailedDescription": "DALL-E creates realistic and artistic images from natural language descriptions, with strong capabilities in photorealistic and creative imagery.",
-      "category": "design",
-      "icon": "🖼️",
-      "accessUrl": "https://openai.com/dall-e-2",
-      "useCases": [
-        "Photorealistic image generation",
-        "Product visualization",
-        "Creative artwork",
-        "Concept illustrations",
-        "Marketing imagery"
+        "Summarize lengthy meeting notes into key takeaways and action items",
+        "Generate comprehensive documentation from bullet points",
+        "Create project plans and roadmaps with AI assistance",
+        "Brainstorm ideas and expand on concepts within your workspace",
+        "Improve writing clarity and fix grammar across all pages",
+        "Translate content into multiple languages for global teams",
+        "Extract action items and create tasks from unstructured notes"
       ],
       "gettingStartedUrl": null,
       "popularPrompts": []
@@ -180,16 +210,17 @@
       "id": "figma-ai",
       "displayName": "Figma AI",
       "description": "AI-powered design assistance within Figma for UI/UX design",
-      "detailedDescription": "Figma AI helps with design workflows, generating design variations, and automating repetitive design tasks within the Figma interface.",
+      "detailedDescription": "Figma AI brings intelligent design assistance directly into the world's leading collaborative design platform. It helps designers work faster by generating design variations, suggesting layout improvements, automating repetitive tasks, and maintaining design system consistency. With features like AI-powered image generation, smart layout suggestions, and automated component creation, Figma AI accelerates the design process while maintaining the creative control designers need. It's particularly powerful for teams working on design systems and large-scale UI projects.",
       "category": "design",
-      "icon": "🎯",
       "accessUrl": "https://figma.com",
       "useCases": [
-        "UI component generation",
-        "Design system creation",
-        "Layout suggestions",
-        "Color palette generation",
-        "Design automation"
+        "Generate multiple design variations for A/B testing",
+        "Create and maintain consistent design systems across products",
+        "Automatically generate responsive layouts for different screen sizes",
+        "Produce placeholder images and realistic mockup content",
+        "Suggest color palettes based on brand guidelines or trends",
+        "Automate repetitive design tasks like icon creation and resizing",
+        "Generate UI components from text descriptions"
       ],
       "gettingStartedUrl": null,
       "popularPrompts": []
@@ -198,16 +229,17 @@
       "id": "canva-ai",
       "displayName": "Canva AI",
       "description": "AI design tools within Canva for quick graphic creation",
-      "detailedDescription": "Canva AI provides automated design suggestions, background removal, and content generation within Canva's user-friendly design platform.",
+      "detailedDescription": "Canva AI democratizes professional design by combining an intuitive drag-and-drop interface with powerful AI capabilities. It offers features like Magic Design (instant layouts from your content), text-to-image generation, background removal, and smart resize for different platforms. Perfect for non-designers and marketing teams who need to create professional-looking graphics quickly. Canva AI can generate entire design sets, suggest brand-consistent color schemes, and even write copy for your designs, making it a complete solution for visual content creation.",
       "category": "design",
-      "icon": "🌈",
       "accessUrl": "https://canva.com",
       "useCases": [
-        "Social media graphics",
-        "Presentation design",
-        "Marketing materials",
-        "Logo creation",
-        "Brand asset generation"
+        "Create complete social media content calendars with consistent branding",
+        "Design professional presentations with AI-generated layouts",
+        "Generate marketing materials like flyers, posters, and brochures",
+        "Remove backgrounds from images instantly for product photos",
+        "Create logo variations and brand identity assets",
+        "Resize designs automatically for different social media platforms",
+        "Generate custom images from text descriptions for unique visuals"
       ],
       "gettingStartedUrl": null,
       "popularPrompts": []
@@ -216,52 +248,17 @@
       "id": "zapier",
       "displayName": "Zapier AI",
       "description": "AI-powered workflow automation connecting different apps and services",
-      "detailedDescription": "Zapier AI helps create automated workflows between different applications, reducing manual tasks and improving productivity through intelligent automation.",
+      "detailedDescription": "Zapier AI revolutionizes workflow automation by combining 6,000+ app integrations with intelligent AI capabilities. It can understand natural language descriptions of workflows and automatically build the necessary connections between your tools. With AI-powered features like smart data mapping, intelligent error handling, and automated workflow suggestions, Zapier AI makes it easy to connect your entire tech stack without writing code. It can also use AI to process data, generate content, and make decisions within your automated workflows.",
       "category": "automation",
-      "icon": "⚡",
       "accessUrl": "https://zapier.com",
       "useCases": [
-        "Workflow automation",
-        "App integration",
-        "Data synchronization",
-        "Task automation",
-        "Process optimization"
-      ],
-      "gettingStartedUrl": null,
-      "popularPrompts": []
-    },
-    {
-      "id": "make",
-      "displayName": "Make (Integromat)",
-      "description": "Visual automation platform for connecting apps and automating workflows",
-      "detailedDescription": "Make provides a visual interface for creating complex automation scenarios, with AI assistance for workflow optimization and error handling.",
-      "category": "automation",
-      "icon": "🔧",
-      "accessUrl": "https://make.com",
-      "useCases": [
-        "Complex workflow automation",
-        "Data processing pipelines",
-        "API integrations",
-        "Business process automation",
-        "Multi-step workflows"
-      ],
-      "gettingStartedUrl": null,
-      "popularPrompts": []
-    },
-    {
-      "id": "github-actions",
-      "displayName": "GitHub Actions",
-      "description": "CI/CD automation platform with AI-assisted workflow creation",
-      "detailedDescription": "GitHub Actions automates software development workflows with AI assistance for creating, optimizing, and troubleshooting CI/CD pipelines.",
-      "category": "automation",
-      "icon": "🔄",
-      "accessUrl": "https://github.com/features/actions",
-      "useCases": [
-        "CI/CD pipeline automation",
-        "Code deployment",
-        "Testing automation",
-        "Release management",
-        "Code quality checks"
+        "Automatically sync customer data between CRM, email, and support tools",
+        "Create workflows using natural language descriptions",
+        "Process and categorize incoming emails with AI-powered routing",
+        "Generate automated reports by pulling data from multiple sources",
+        "Set up intelligent lead scoring and qualification workflows",
+        "Automate social media posting across multiple platforms with AI-generated captions",
+        "Build custom chatbots that integrate with your existing tools"
       ],
       "gettingStartedUrl": null,
       "popularPrompts": []
@@ -270,16 +267,17 @@
       "id": "n8n",
       "displayName": "n8n",
       "description": "Open-source workflow automation tool with AI integration capabilities",
-      "detailedDescription": "n8n is a self-hosted automation platform that can integrate AI services and create complex workflows with visual node-based editing.",
+      "detailedDescription": "n8n is a powerful open-source workflow automation platform that gives you complete control over your automations. Unlike cloud-only solutions, n8n can be self-hosted, ensuring your data stays private and secure. It features a visual node-based editor that makes complex workflows easy to understand and modify. With 400+ integrations and native support for AI services like OpenAI, Anthropic, and local LLMs, n8n is perfect for building sophisticated AI-powered automations. Its extensibility allows you to create custom nodes and integrate any API or service.",
       "category": "automation",
-      "icon": "🌐",
       "accessUrl": "https://n8n.io",
       "useCases": [
-        "Self-hosted automation",
-        "AI service integration",
-        "Custom workflow creation",
-        "Data processing",
-        "API orchestration"
+        "Build self-hosted automation workflows with complete data privacy",
+        "Integrate multiple AI models (OpenAI, Claude, local LLMs) in workflows",
+        "Create custom API integrations and data processing pipelines",
+        "Automate document processing with AI-powered extraction and analysis",
+        "Build intelligent chatbots that connect to your internal systems",
+        "Process and transform data between different systems and formats",
+        "Create complex conditional workflows with branching logic and error handling"
       ],
       "gettingStartedUrl": null,
       "popularPrompts": []

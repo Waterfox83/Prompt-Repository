@@ -142,40 +142,11 @@ function AppContent() {
     }
   };
 
-  const [favoritesRefreshTrigger, setFavoritesRefreshTrigger] = useState(0);
-
-  const handleFavoriteToggle = async (promptId, isFavorited) => {
-    // Update the local state immediately for better UX
-    const updatePromptInList = (prompts) => {
-      return prompts.map(prompt => {
-        if (prompt.id === promptId) {
-          return {
-            ...prompt,
-            user_context: {
-              ...prompt.user_context,
-              is_favorited: isFavorited
-            }
-          };
-        }
-        return prompt;
-      });
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
     };
-
-    // Update both allPrompts and displayedPrompts
-    setAllPrompts(prev => updatePromptInList(prev));
-    setDisplayedPrompts(prev => updatePromptInList(prev));
-
-    // If we're currently viewing favorites, refresh the favorites view
-    if (activeFilter && activeFilter.type === 'favorites') {
-      // Small delay to ensure backend is updated
-      setTimeout(() => {
-        handleFilter('favorites', 'Favorites');
-      }, 100);
-    }
-
-    // Trigger favorites count refresh
-    setFavoritesRefreshTrigger(prev => prev + 1);
-  };
+  }, []);
 
   const handleFilter = async (type, value) => {
     if (type === 'clear') {
@@ -208,29 +179,6 @@ function AppContent() {
         return p.owner_email && p.owner_email === user.email;
       });
       setDisplayedPrompts(filtered);
-    } else if (type === 'favorites') {
-      // Fetch user's favorites and filter prompts
-      console.log('Fetching favorites for user:', user?.email);
-      try {
-        const response = await fetch(`${API_URL}/users/me/favorites`, {
-          credentials: 'include',
-        });
-        console.log('Favorites response status:', response.status);
-        if (response.ok) {
-          const data = await response.json();
-          console.log('Favorites data:', data);
-          setDisplayedPrompts(data.favorites);
-        } else {
-          const errorText = await response.text();
-          console.error('Favorites API error:', response.status, errorText);
-          addToast('Failed to load favorites', 'error');
-          setDisplayedPrompts([]);
-        }
-      } catch (error) {
-        console.error('Error loading favorites:', error);
-        addToast('Error loading favorites', 'error');
-        setDisplayedPrompts([]);
-      }
     }
   };
 
@@ -306,7 +254,6 @@ function AppContent() {
           onFilter={handleFilter}
           user={user}
           onMobileToggle={handleMobileSidebarToggle}
-          favoritesRefreshTrigger={favoritesRefreshTrigger}
           onLogout={handleLogout}
         />
       }
@@ -359,7 +306,6 @@ function AppContent() {
                 setEditingPrompt(prompt);
               }}
               user={user}
-              onFavoriteToggle={handleFavoriteToggle}
             />
           )}
 

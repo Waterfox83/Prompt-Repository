@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useToast } from './Toast';
-
+import toolsData from '../data/tools.json';
 import { API_URL } from '../config';
 
 const PromptForm = ({ onSave, loading, initialData = null, onCancel = null }) => {
@@ -23,11 +23,10 @@ const PromptForm = ({ onSave, loading, initialData = null, onCancel = null }) =>
 
     const isEditing = !!initialData;
 
-    const PREDEFINED_TOOLS = [
-        "ChatGPT", "Claude", "Gemini", "Llama 3", "Mistral",
-        "Copilot", "Midjourney", "DALL-E 3", "Stable Diffusion",
-        "NotebookLM", "AgentSpace", "GitHub Copilot", "Cline", "Cursor"
-    ];
+    // Get tools from tools.json
+    const PREDEFINED_TOOLS = toolsData.tools
+        .map(tool => tool.displayName)
+        .sort(); // Sort alphabetically for better UX
 
     const handleAddTool = (tool) => {
         if (tool && !selectedTools.includes(tool)) {

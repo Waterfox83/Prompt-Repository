@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useFavorites } from '../../hooks/useFavorites';
+import toolsData from '../../data/tools.json';
 import './Sidebar.css';
 
 const Sidebar = ({ 
@@ -9,19 +9,11 @@ const Sidebar = ({
   onFilter, 
   user,
   onMobileToggle,
-  favoritesRefreshTrigger,
   onLogout
 }) => {
   const [isToolsExpanded, setIsToolsExpanded] = useState(false);
+  const [isOthersExpanded, setIsOthersExpanded] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const { favoritesCount, refetch: refetchFavorites } = useFavorites(user);
-
-  // Refetch favorites count when refresh trigger changes
-  React.useEffect(() => {
-    if (favoritesRefreshTrigger > 0) {
-      refetchFavorites();
-    }
-  }, [favoritesRefreshTrigger, refetchFavorites]);
 
   const handleLogout = async () => {
     try {
@@ -56,25 +48,19 @@ const Sidebar = ({
           onFilter('my-prompts', 'My Prompts');
         }
       }
-    },
-    {
-      id: 'favorites',
-      label: 'Favorites',
-      count: favoritesCount,
-      onClick: () => {
-        onTabChange('browse');
-        onFilter('favorites', 'Favorites');
-      }
     }
   ];
 
-  // Placeholder tools - will be enhanced in later tasks
-  const tools = [
-    { id: 'chatgpt', name: 'ChatGPT' },
-    { id: 'claude', name: 'Claude' },
-    { id: 'copilot', name: 'GitHub Copilot' },
-    { id: 'midjourney', name: 'Midjourney' }
-  ];
+  // Load tools from tools.json and separate into main and others
+  const othersToolIds = ['cursor', 'jasper', 'notion-ai', 'figma-ai', 'canva-ai', 'zapier', 'github-actions', 'n8n'];
+  
+  const allTools = toolsData.tools.map(tool => ({
+    id: tool.id,
+    name: tool.displayName
+  }));
+  
+  const mainTools = allTools.filter(tool => !othersToolIds.includes(tool.id));
+  const othersTools = allTools.filter(tool => othersToolIds.includes(tool.id));
 
   return (
     <nav className="sidebar">
@@ -110,9 +96,6 @@ const Sidebar = ({
               </div>
               <div className="user-menu-divider"></div>
               <button className="user-menu-item" onClick={() => setShowUserMenu(false)}>
-                <span>Preferences</span>
-              </button>
-              <button className="user-menu-item" onClick={() => setShowUserMenu(false)}>
                 <span>Help & Support</span>
               </button>
               <div className="user-menu-divider"></div>
@@ -131,64 +114,101 @@ const Sidebar = ({
         </button>
       </div>
 
-      {/* Main Navigation */}
-      <div className="sidebar-section">
-        <ul className="nav-list">
-          {navigationItems.map((item) => (
-            <li key={item.id}>
-              <button
-                className={`nav-item ${
-                  (item.id === 'browse' && activeTab === 'browse' && !activeFilter) ||
-                   (item.id === 'my-prompts' && activeFilter?.type === 'my-prompts') ||
-                   (item.id === 'favorites' && activeFilter?.type === 'favorites') 
-                    ? 'active' : ''
-                }`}
-                onClick={item.onClick}
-              >
-                <span className="nav-icon"></span>
-                <span className="nav-label">{item.label}</span>
-                {item.count !== undefined && item.count > 0 && (
-                  <span className="nav-count">{item.count}</span>
-                )}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      {/* AI Tools Directory */}
-      <div className="sidebar-section">
-        <button
-          className="section-header"
-          onClick={() => setIsToolsExpanded(!isToolsExpanded)}
-        >
-          <span className="section-title">AI Toolbox</span>
-          <span className={`expand-icon ${isToolsExpanded ? 'expanded' : ''}`}>
-            ▶
-          </span>
-        </button>
-        
-        {isToolsExpanded && (
-          <ul className="tools-list">
-            {tools.map((tool) => (
-              <li key={tool.id}>
+      {/* Scrollable Content Area */}
+      <div className="sidebar-content">
+        {/* Main Navigation */}
+        <div className="sidebar-section">
+          <ul className="nav-list">
+            {navigationItems.map((item) => (
+              <li key={item.id}>
                 <button
-                  className={`tool-item ${
-                    activeFilter?.type === 'tool' && activeFilter?.value === tool.name 
+                  className={`nav-item ${
+                    (item.id === 'browse' && activeTab === 'browse' && !activeFilter) ||
+                     (item.id === 'my-prompts' && activeFilter?.type === 'my-prompts')
                       ? 'active' : ''
                   }`}
-                  onClick={() => {
-                    onTabChange('browse');
-                    onFilter('tool', tool.name);
-                  }}
+                  onClick={item.onClick}
                 >
-                  <span className="tool-icon"></span>
-                  <span className="tool-name">{tool.name}</span>
+                  <span className="nav-icon"></span>
+                  <span className="nav-label">{item.label}</span>
+                  {item.count !== undefined && item.count > 0 && (
+                    <span className="nav-count">{item.count}</span>
+                  )}
                 </button>
               </li>
             ))}
           </ul>
-        )}
+        </div>
+
+        {/* AI Tools Directory */}
+        <div className="sidebar-section">
+          <button
+            className="section-header"
+            onClick={() => setIsToolsExpanded(!isToolsExpanded)}
+          >
+            <span className="section-title">AI Toolbox</span>
+            <span className={`expand-icon ${isToolsExpanded ? 'expanded' : ''}`}>
+              ▶
+            </span>
+          </button>
+          
+          {isToolsExpanded && (
+            <ul className="tools-list">
+              {mainTools.map((tool) => (
+                <li key={tool.id}>
+                  <button
+                    className={`tool-item ${
+                      activeFilter?.type === 'tool' && activeFilter?.value === tool.name 
+                        ? 'active' : ''
+                    }`}
+                    onClick={() => {
+                      onTabChange('browse');
+                      onFilter('tool', tool.name);
+                    }}
+                  >
+                    <span className="tool-icon">◽️</span>
+                    <span className="tool-name">{tool.name}</span>
+                  </button>
+                </li>
+              ))}
+              
+              {/* Others Section */}
+              <li>
+                <button
+                  className="tool-item others-header"
+                  onClick={() => setIsOthersExpanded(!isOthersExpanded)}
+                >
+                  <span className="expand-icon" style={{ marginRight: '8px', fontSize: '0.7em' }}>
+                    {isOthersExpanded ? '▼' : '▶'}
+                  </span>
+                  <span className="tool-name">Others</span>
+                </button>
+                
+                {isOthersExpanded && (
+                  <ul className="tools-list nested">
+                    {othersTools.map((tool) => (
+                      <li key={tool.id}>
+                        <button
+                          className={`tool-item ${
+                            activeFilter?.type === 'tool' && activeFilter?.value === tool.name 
+                              ? 'active' : ''
+                          }`}
+                          onClick={() => {
+                            onTabChange('browse');
+                            onFilter('tool', tool.name);
+                          }}
+                        >
+                          <span className="tool-icon">◽️</span>
+                          <span className="tool-name">{tool.name}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            </ul>
+          )}
+        </div>
       </div>
 
       {/* Footer Links */}
