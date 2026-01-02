@@ -6,11 +6,10 @@ const HeroMissionStatement = ({ isFirstTime = false }) => {
     <div className={`hero-mission ${isFirstTime ? 'hero-mission--animated' : ''}`}>
       <div className="hero-mission__content">
         <h1 className="hero-mission__title">
-          Discover AI Prompts That Actually Work
+          AI Use Cases That Help. AI Prompts That Work.
         </h1>
         <p className="hero-mission__subtitle">
-          Find proven prompts for ChatGPT, Claude, and other AI tools, shared by developers and creators who've tested them in real projects. 
-          Stop starting from scratch—build on what works.
+          Centralize, share, and discover the best AI prompts and innovative usecases across Pega. Turn your individual wins into team assets. Build on what works.
         </p>
       </div>
     </div>

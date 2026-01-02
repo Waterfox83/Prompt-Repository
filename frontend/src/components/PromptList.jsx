@@ -96,12 +96,55 @@ const PromptList = ({ onSearch, results, loading, onFilter, activeFilter, onEdit
             <div className="card mb-4">
                 <h2 style={{ marginTop: 0 }}>Search Repository</h2>
                 <form onSubmit={handleSearch} className="flex gap-2">
-                    <input
-                        value={query}
-                        onChange={(e) => setQuery(e.target.value)}
-                        placeholder="Search by meaning (e.g., 'help me debug python code')..."
-                        style={{ flex: 1 }}
-                    />
+                    <div style={{ position: 'relative', flex: 1 }}>
+                        <input
+                            value={query}
+                            onChange={(e) => setQuery(e.target.value)}
+                            placeholder="Search by meaning (e.g., 'help me debug python code')..."
+                            style={{ 
+                                width: '100%',
+                                paddingRight: query.trim() ? '2.5rem' : '1rem'
+                            }}
+                        />
+                        {query.trim() && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setQuery('');
+                                    setHasSearched(false);
+                                    onSearch('');
+                                }}
+                                style={{
+                                    position: 'absolute',
+                                    right: '0.5rem',
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    background: 'none',
+                                    border: 'none',
+                                    color: '#94a3b8',
+                                    cursor: 'pointer',
+                                    fontSize: '1.2rem',
+                                    padding: '0.25rem',
+                                    borderRadius: '0.25rem',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    transition: 'color 0.2s ease'
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.target.style.color = '#64748b';
+                                    e.target.style.background = 'rgba(148, 163, 184, 0.1)';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.target.style.color = '#94a3b8';
+                                    e.target.style.background = 'none';
+                                }}
+                                title="Clear search"
+                            >
+                                ×
+                            </button>
+                        )}
+                    </div>
                     <button
                         type="submit"
                         className="btn btn-primary"
