@@ -255,6 +255,7 @@ function AppContent() {
           user={user}
           onMobileToggle={handleMobileSidebarToggle}
           onLogout={handleLogout}
+          onShowAbout={() => setShowAbout(true)}
         />
       }
       topBar={
@@ -267,24 +268,6 @@ function AppContent() {
       }
       mainContent={
         <MainCanvas context={activeTab}>
-          {/* About Button - positioned absolutely */}
-          <button
-            onClick={() => setShowAbout(true)}
-            style={{
-              position: 'absolute',
-              top: '1rem',
-              right: '1rem',
-              background: 'transparent',
-              border: 'none',
-              color: '#94a3b8',
-              cursor: 'pointer',
-              fontSize: '0.9rem',
-              textDecoration: 'underline',
-              zIndex: 10
-            }}
-          >
-            About
-          </button>
 
           {activeTab === 'add' && (
             <PromptForm 

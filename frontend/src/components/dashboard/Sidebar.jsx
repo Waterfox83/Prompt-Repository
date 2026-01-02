@@ -9,7 +9,8 @@ const Sidebar = ({
   onFilter, 
   user,
   onMobileToggle,
-  onLogout
+  onLogout,
+  onShowAbout
 }) => {
   const [isToolsExpanded, setIsToolsExpanded] = useState(false);
   const [isOthersExpanded, setIsOthersExpanded] = useState(false);
@@ -95,8 +96,11 @@ const Sidebar = ({
                 </div>
               </div>
               <div className="user-menu-divider"></div>
-              <button className="user-menu-item" onClick={() => setShowUserMenu(false)}>
-                <span>Help & Support</span>
+              <button className="user-menu-item" onClick={() => {
+                setShowUserMenu(false);
+                if (onShowAbout) onShowAbout();
+              }}>
+                <span>About</span>
               </button>
               <div className="user-menu-divider"></div>
               <button className="user-menu-item logout" onClick={handleLogout}>
