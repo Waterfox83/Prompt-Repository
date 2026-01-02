@@ -32,7 +32,7 @@ const Sidebar = ({
   const navigationItems = [
     {
       id: 'browse',
-      label: 'Home',
+      label: '🥏 Home',
       onClick: () => {
         onTabChange('browse');
         // Clear any active filters to return to true home state
@@ -42,7 +42,7 @@ const Sidebar = ({
     },
     {
       id: 'my-prompts',
-      label: 'My Prompts',
+      label: '🥏 My Prompts',
       onClick: () => {
         onTabChange('browse');
         if (user && user.email) {
@@ -170,7 +170,7 @@ const Sidebar = ({
                       onFilter('tool', tool.name);
                     }}
                   >
-                    <span className="tool-icon">◽️</span>
+                    <span className="tool-icon">🥏</span>
                     <span className="tool-name">{tool.name}</span>
                   </button>
                 </li>
@@ -202,7 +202,7 @@ const Sidebar = ({
                             onFilter('tool', tool.name);
                           }}
                         >
-                          <span className="tool-icon">◽️</span>
+                          <span className="tool-icon">🥏</span>
                           <span className="tool-name">{tool.name}</span>
                         </button>
                       </li>

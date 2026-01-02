@@ -94,7 +94,7 @@ const ToolCard = ({ toolName, onViewPrompts, onClose, promptCount = 0 }) => {
         </button>
 
         <div className="tool-card-header">
-          <div className="tool-card-icon">◽️</div>
+          <div className="tool-card-icon">🥏</div>
           <div className="tool-card-title-section">
             <h2 id="tool-card-title" className="tool-card-title">{tool.displayName}</h2>
             {categoryInfo && (
